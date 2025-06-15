@@ -6,9 +6,9 @@ containing common functionality and abstract methods.
 """
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Optional
 
 from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF
@@ -35,18 +35,140 @@ class BossAnalysisBase(ABC):
         self.boss_name: Optional[str] = None
         self.encounter_id: Optional[int] = None
         self.difficulty: int = 5  # Default to Mythic difficulty
-        self.results: List[Dict[str, Any]] = []
+        self.results: list[dict[str, Any]] = []
 
-    @abstractmethod
-    def analyze(self, report_codes: List[str]) -> None:
+        # Configuration attributes for registry-based system
+        self.ANALYSIS_CONFIG: list[dict[str, Any]] = getattr(self, "ANALYSIS_CONFIG", [])
+        self.PLOT_CONFIG: list[dict[str, Any]] = getattr(self, "PLOT_CONFIG", [])
+
+    def analyze(self, report_codes: list[str]) -> None:
         """
-        Analyze reports for this specific boss.
+        Analyze reports for this specific boss using configuration.
 
         :param report_codes: List of Warcraft Logs report codes to analyze
         """
-        pass
+        if self.ANALYSIS_CONFIG:
+            # Use configuration-based analysis
+            self._analyze_generic(report_codes)
+        else:
+            # Fall back to legacy analyze method
+            self._analyze_legacy(report_codes)
 
-    def get_fight_ids(self, report_code: str) -> Optional[Set[int]]:
+    def _analyze_legacy(self, report_codes: list[str]) -> None:
+        """
+        Legacy analyze method for backwards compatibility.
+
+        Override this in subclasses that don't use configuration.
+
+        :param report_codes: List of Warcraft Logs report codes to analyze
+        """
+        raise NotImplementedError("Either implement ANALYSIS_CONFIG or override _analyze_legacy")
+
+    def _analyze_generic(self, report_codes: list[str]) -> None:
+        """
+        Analyze using configuration.
+
+        :param report_codes: List of Warcraft Logs report codes to analyze
+        """
+        logger.info(f"Starting {self.boss_name} analysis for {len(report_codes)} reports")
+
+        for report_code in report_codes:
+            try:
+                logger.info(f"Processing report {report_code}")
+                self._process_report_generic(report_code)
+            except Exception as e:
+                logger.error(f"Error processing report {report_code}: {e}")
+                continue
+
+    def _process_report_generic(self, report_code: str) -> None:
+        """
+        Process a single report using configuration.
+
+        :param report_code: The WarcraftLogs report code
+        """
+        logger.debug(f"Processing report {report_code} for {self.boss_name}")
+
+        # Get fights for this report
+        fight_ids = self.get_fight_ids(report_code)
+        if not fight_ids:
+            return
+
+        # Get timestamp of first fight
+        start_time = self.get_start_time(report_code, fight_ids)
+
+        report_results = {
+            "starttime": start_time,
+            "reportCode": report_code,
+            "analysis": [],
+            "fight_ids": fight_ids,
+        }
+
+        # Get players who participated in these specific fights
+        report_players = self.get_participants(report_code, fight_ids)
+        if not report_players:
+            return
+
+        # Execute all configured analyses
+        for config in self.ANALYSIS_CONFIG:
+            try:
+                data = self._execute_analysis(config, report_code, fight_ids, report_players)
+                report_results["analysis"].append({"name": config["name"], "data": data})
+            except Exception as e:
+                logger.error(f"Error executing analysis {config['name']}: {e}")
+                continue
+
+        self.results.append(report_results)
+        logger.info(f"Successfully processed report {report_code} with {len(report_results['analysis'])} analyses")
+
+    def _execute_analysis(
+        self, config: dict[str, Any], report_code: str, fight_ids: set[int], report_players: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Execute a single analysis based on configuration.
+
+        :param config: Analysis configuration dictionary
+        :param report_code: The WarcraftLogs report code
+        :param fight_ids: Set of fight IDs to analyze
+        :param report_players: List of players who participated in the fights
+        :return: Analysis results data
+        """
+        analysis_type = config["type"]
+
+        if analysis_type == "interrupts":
+            data = self.analyze_interrupts(
+                report_code=report_code,
+                fight_ids=fight_ids,
+                report_players=report_players,
+                ability_id=config["ability_id"],
+            )
+        elif analysis_type == "debuff_uptime":
+            data = self.analyze_debuff_uptime(
+                report_code=report_code,
+                fight_ids=fight_ids,
+                report_players=report_players,
+                ability_id=config["ability_id"],
+                wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
+                filter_expression=config.get("filter_expression"),
+            )
+        elif analysis_type == "damage_to_actor":
+            data = self.get_damage_to_actor(
+                report_code=report_code,
+                fight_ids=fight_ids,
+                target_game_id=config["target_game_id"],
+                report_players=report_players,
+                filter_expression=config.get("filter_expression"),
+                wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
+            )
+            # Rename damage field if result_key is specified
+            if "result_key" in config and config["result_key"] != "damage":
+                for player_data in data:
+                    player_data[config["result_key"]] = player_data.pop("damage")
+        else:
+            raise ValueError(f"Unknown analysis type: {analysis_type}")
+
+        return data
+
+    def get_fight_ids(self, report_code: str) -> Optional[set[int]]:
         """
         Get unique fight IDs for this boss from a report.
 
@@ -108,7 +230,7 @@ class BossAnalysisBase(ABC):
         logger.info(f'Found {len(fight_ids)} fights for boss "{self.boss_name}" in report {report_code}')
         return fight_ids
 
-    def get_start_time(self, report_code: str, fight_ids: Set[int]) -> Optional[float]:
+    def get_start_time(self, report_code: str, fight_ids: set[int]) -> Optional[float]:
         """
         Get the start time for the fights.
 
@@ -155,7 +277,7 @@ class BossAnalysisBase(ABC):
 
         return earliest_unix_seconds
 
-    def get_total_fight_duration(self, report_code: str, fight_ids: Set[int]) -> Optional[int]:
+    def get_total_fight_duration(self, report_code: str, fight_ids: set[int]) -> Optional[int]:
         """
         Get the total duration in milliseconds for specified fight IDs.
 
@@ -206,7 +328,7 @@ class BossAnalysisBase(ABC):
             logger.error(f"Error getting fight durations: {e}")
             return None
 
-    def get_participants(self, report_code: str, fight_ids: Set[int]) -> Optional[List[Dict[str, Any]]]:
+    def get_participants(self, report_code: str, fight_ids: set[int]) -> Optional[list[dict[str, Any]]]:
         """
         Get player details for specific fights in a report.
 
@@ -270,7 +392,7 @@ class BossAnalysisBase(ABC):
 
     def find_analysis_data(
         self, analysis_name: str, value_column: str, name_column: str
-    ) -> Tuple[Optional[List[Dict]], Optional[Dict[str, Any]]]:
+    ) -> tuple[Optional[list[dict]], Optional[dict[str, Any]]]:
         """
         Find current and previous analysis data by name and starttime.
 
@@ -326,12 +448,12 @@ class BossAnalysisBase(ABC):
     def get_damage_to_actor(
         self,
         report_code: str,
-        fight_ids: Set[int],
+        fight_ids: set[int],
         target_game_id: int,
-        report_players: List[Dict[str, Any]],
+        report_players: list[dict[str, Any]],
         filter_expression: Optional[str] = None,
         wipe_cutoff: Optional[int] = DEFAULT_WIPE_CUTOFF,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get damage done to a specific actor (e.g., add, boss mechanic) for a single report.
 
@@ -389,27 +511,26 @@ class BossAnalysisBase(ABC):
 
         # Step 2: Get damage done data for each target and aggregate
         damage_query = """
-        query GetDamageDone($reportCode: String!, $fightIDs: [Int]!, $targetID: Int!, $filterExpression: String) {
+        query GetDamageDone(
+            $reportCode: String!, $fightIDs: [Int]!, $targetID: Int!,
+            $filterExpression: String, $encounterID: Int!, $difficulty: Int!, $wipeCutoff: Int!
+        ) {
           reportData {
             report(code: $reportCode) {
               table(
                 dataType: DamageDone
                 fightIDs: $fightIDs
-                encounterID: %d
-                difficulty: %d
+                encounterID: $encounterID
+                difficulty: $difficulty
                 targetID: $targetID
                 killType: Wipes
-                wipeCutoff: %d
+                wipeCutoff: $wipeCutoff
                 filterExpression: $filterExpression
               )
             }
           }
         }
-        """ % (
-            self.encounter_id,
-            self.difficulty,
-            wipe_cutoff,
-        )
+        """
 
         # Initialize damage tracking for each player
         damage_totals = defaultdict(int)
@@ -423,6 +544,9 @@ class BossAnalysisBase(ABC):
                 "fightIDs": list(fight_ids),
                 "targetID": target_id,
                 "filterExpression": filter_expression,
+                "encounterID": self.encounter_id,
+                "difficulty": self.difficulty,
+                "wipeCutoff": wipe_cutoff,
             }
 
             damage_result = self.api_client.make_request(damage_query, damage_variables)
@@ -473,10 +597,10 @@ class BossAnalysisBase(ABC):
     def analyze_interrupts(
         self,
         report_code: str,
-        fight_ids: Set[int],
-        report_players: List[Dict[str, Any]],
+        fight_ids: set[int],
+        report_players: list[dict[str, Any]],
         ability_id: float,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Analyze interrupt events for a specific ability.
 
@@ -573,12 +697,12 @@ class BossAnalysisBase(ABC):
     def analyze_debuff_uptime(
         self,
         report_code: str,
-        fight_ids: Set[int],
-        report_players: List[Dict[str, Any]],
+        fight_ids: set[int],
+        report_players: list[dict[str, Any]],
         ability_id: float,
         wipe_cutoff: Optional[int] = DEFAULT_WIPE_CUTOFF,
         filter_expression: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Analyze debuff uptime for a specific ability.
 
@@ -592,33 +716,35 @@ class BossAnalysisBase(ABC):
         """
         # Get debuff uptime data
         query = """
-        query DebuffUptime($reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!, $filterExpression: String) {
+        query DebuffUptime(
+            $reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!,
+            $filterExpression: String, $encounterID: Int!, $difficulty: Int!, $wipeCutoff: Int!
+        ) {
           reportData {
             report(code: $reportCode) {
               table(
                 dataType: Debuffs
                 fightIDs: $fightIDs
-                encounterID: %d
-                difficulty: %d
+                encounterID: $encounterID
+                difficulty: $difficulty
                 abilityID: $abilityID
                 killType: Wipes
-                wipeCutoff: %d
+                wipeCutoff: $wipeCutoff
                 filterExpression: $filterExpression
               )
             }
           }
         }
-        """ % (
-            self.encounter_id,
-            self.difficulty,
-            wipe_cutoff,
-        )
+        """
 
         variables = {
             "reportCode": report_code,
             "fightIDs": list(fight_ids),
             "abilityID": ability_id,
             "filterExpression": filter_expression,
+            "encounterID": self.encounter_id,
+            "difficulty": self.difficulty,
+            "wipeCutoff": wipe_cutoff,
         }
 
         result = self.api_client.make_request(query, variables)
@@ -689,7 +815,7 @@ class BossAnalysisBase(ABC):
 
     def _calculate_debuff_uptime(
         self,
-        events: List[Dict[str, Any]],
+        events: list[dict[str, Any]],
         player_name: str,
         total_duration_ms: int,
     ) -> float:
@@ -732,3 +858,109 @@ class BossAnalysisBase(ABC):
         uptime_percentage = (total_uptime_ms / total_duration_ms) * 100
 
         return round(uptime_percentage, 2)
+
+    def generate_plots(self) -> None:
+        """Generate plots using configuration."""
+        if self.PLOT_CONFIG:
+            self._generate_plots_generic()
+        else:
+            self._generate_plots_legacy()
+
+    def _generate_plots_legacy(self) -> None:
+        """
+        Legacy plot generation method for backwards compatibility.
+
+        Override this in subclasses that don't use configuration.
+        """
+        raise NotImplementedError("Either implement PLOT_CONFIG or override _generate_plots_legacy")
+
+    def _generate_plots_generic(self) -> None:
+        """Generate plots using configuration."""
+        logger.info(f"Generating plots for {self.boss_name} analysis")
+
+        if not self.results:
+            logger.warning("No reports available to generate plots")
+            return
+
+        # Sort reports by starttime (newest first)
+        sorted_reports = sorted(self.results, key=lambda x: x["starttime"], reverse=True)
+        latest_report = sorted_reports[0]
+
+        from datetime import datetime
+
+        report_date = datetime.fromtimestamp(latest_report["starttime"]).strftime("%d.%m.%Y")
+
+        # Get fight counts for current and previous reports
+        current_fight_count = len(latest_report.get("fight_ids", []))
+        previous_fight_count = len(sorted_reports[1].get("fight_ids", [])) if len(sorted_reports) > 1 else None
+
+        # Generate plots based on configuration
+        for plot_config in self.PLOT_CONFIG:
+            try:
+                self._generate_single_plot(plot_config, report_date, current_fight_count, previous_fight_count)
+            except Exception as e:
+                logger.error(f"Error generating plot {plot_config.get('title', 'Unknown')}: {e}")
+                continue
+
+    def _generate_single_plot(
+        self,
+        plot_config: dict[str, Any],
+        report_date: str,
+        current_fight_count: int,
+        previous_fight_count: Optional[int],
+    ) -> None:
+        """
+        Generate a single plot based on configuration.
+
+        :param plot_config: Plot configuration dictionary
+        :param report_date: Date string for the report
+        :param current_fight_count: Number of fights in current report
+        :param previous_fight_count: Number of fights in previous report
+        """
+        import pandas as pd
+
+        from ..plotting.base import NumberPlot, PercentagePlot
+
+        analysis_name = plot_config["analysis_name"]
+        plot_type = plot_config["plot_type"]
+        title = plot_config["title"]
+        value_column = plot_config["value_column"]
+        value_column_name = plot_config["value_column_name"]
+        name_column = plot_config.get("name_column", "player_name")
+        class_column = plot_config.get("class_column", "class")
+
+        # Get analysis data
+        current_data, previous_dict = self.find_analysis_data(analysis_name, value_column, name_column)
+
+        df = pd.DataFrame(current_data)
+
+        # Create appropriate plot type
+        if plot_type == "NumberPlot":
+            plot = NumberPlot(
+                title=title,
+                date=report_date,
+                df=df,
+                previous_data=previous_dict,
+                value_column=value_column,
+                value_column_name=value_column_name,
+                name_column=name_column,
+                class_column=class_column,
+                current_fight_count=current_fight_count,
+                previous_fight_count=previous_fight_count,
+            )
+        elif plot_type == "PercentagePlot":
+            plot = PercentagePlot(
+                title=title,
+                date=report_date,
+                df=df,
+                previous_data=previous_dict,
+                value_column=value_column,
+                value_column_name=value_column_name,
+                name_column=name_column,
+                class_column=class_column,
+            )
+        else:
+            raise ValueError(f"Unknown plot type: {plot_type}")
+
+        plot.save()
+        logger.debug(f"Generated {plot_type} for {title}")
