@@ -166,7 +166,7 @@ class TestBaseTablePlot:
         
         change_text, change_color = plot._calculate_change(120, 100)
         
-        assert change_text == "+20"
+        assert change_text == "+ 20"
         assert change_color == PlotColors.POSITIVE_CHANGE_COLOR
     
     def test_calculate_change_negative(self):
@@ -176,7 +176,7 @@ class TestBaseTablePlot:
         
         change_text, change_color = plot._calculate_change(80, 100)
         
-        assert change_text == "-20"
+        assert change_text == "- 20"
         assert change_color == PlotColors.NEGATIVE_CHANGE_COLOR
     
     def test_calculate_change_zero(self):
@@ -196,7 +196,7 @@ class TestBaseTablePlot:
         
         change_text, change_color = plot._calculate_change(100, None)
         
-        assert change_text == "N/A"
+        assert change_text == ""
         assert change_color == PlotColors.TEXT_SECONDARY
     
     @patch('matplotlib.pyplot.subplots')

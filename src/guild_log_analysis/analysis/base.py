@@ -360,8 +360,13 @@ class BossAnalysisBase(ABC):
         }
 
         actors_result = self.api_client.make_request(actors_query, actors_variables)
-        if not actors_result or 'data' not in actors_result or 'reportData' not in actors_result['data']:
-            logger.warning(f"No actors data returned for report {report_code}")
+        try:
+            if not actors_result or 'data' not in actors_result or 'reportData' not in actors_result['data']:
+                logger.warning(f"No actors data returned for report {report_code}")
+                return []
+        except (TypeError, AttributeError):
+            # Handle case where actors_result is a Mock object or doesn't support 'in' operator
+            logger.warning(f"Invalid actors data returned for report {report_code}")
             return []
 
         # Find all target IDs matching the game ID

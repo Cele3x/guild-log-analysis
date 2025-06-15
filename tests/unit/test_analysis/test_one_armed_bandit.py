@@ -112,9 +112,15 @@ class TestOneArmedBanditAnalysis:
     @patch.object(OneArmedBanditAnalysis, '_analyze_overload_interrupts')
     @patch.object(OneArmedBanditAnalysis, '_analyze_high_roller_uptime')
     @patch.object(OneArmedBanditAnalysis, '_analyze_damage_to_premium_dynamite_booties')
+    @patch.object(OneArmedBanditAnalysis, '_analyze_damage_to_reel_assistants')
+    @patch.object(OneArmedBanditAnalysis, '_analyze_damage_to_boss')
+    @patch.object(OneArmedBanditAnalysis, '_analyze_absorbed_damage_to_reel_assistants')
     def test_process_report_success(
         self,
-        mock_analyze_damage,
+        mock_analyze_absorbed_damage,
+        mock_analyze_boss_damage,
+        mock_analyze_reel_assistants,
+        mock_analyze_premium_damage,
         mock_analyze_uptime,
         mock_analyze_interrupts,
         mock_get_participants,
@@ -130,7 +136,10 @@ class TestOneArmedBanditAnalysis:
         mock_get_participants.return_value = sample_players_data
         mock_analyze_interrupts.return_value = []
         mock_analyze_uptime.return_value = []
-        mock_analyze_damage.return_value = []
+        mock_analyze_premium_damage.return_value = []
+        mock_analyze_reel_assistants.return_value = []
+        mock_analyze_boss_damage.return_value = []
+        mock_analyze_absorbed_damage.return_value = []
         
         analysis = OneArmedBanditAnalysis(mock_api_client)
         analysis._process_report("test_report")
@@ -141,7 +150,10 @@ class TestOneArmedBanditAnalysis:
         mock_get_participants.assert_called_once_with("test_report", {1, 2})
         mock_analyze_interrupts.assert_called_once()
         mock_analyze_uptime.assert_called_once()
-        mock_analyze_damage.assert_called_once()
+        mock_analyze_premium_damage.assert_called_once()
+        mock_analyze_reel_assistants.assert_called_once()
+        mock_analyze_boss_damage.assert_called_once()
+        mock_analyze_absorbed_damage.assert_called_once()
         
         # Verify results were added
         assert len(analysis.results) == 1
