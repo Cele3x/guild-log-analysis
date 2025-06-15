@@ -5,9 +5,7 @@ This module provides common test fixtures and configuration
 used across all test modules.
 """
 
-import json
-from typing import Any, Dict, List
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -289,13 +287,25 @@ def sample_player_details_response():
                         "data": {
                             "playerDetails": {
                                 "tanks": [
-                                    {"name": "TestPlayer1", "id": 1, "type": "Warrior"}
+                                    {
+                                        "name": "TestPlayer1",
+                                        "id": 1,
+                                        "type": "Warrior",
+                                    }
                                 ],
                                 "healers": [
-                                    {"name": "TestPlayer2", "id": 2, "type": "Priest"}
+                                    {
+                                        "name": "TestPlayer2",
+                                        "id": 2,
+                                        "type": "Priest",
+                                    }
                                 ],
                                 "dps": [
-                                    {"name": "TestPlayer3", "id": 3, "type": "Mage"}
+                                    {
+                                        "name": "TestPlayer3",
+                                        "id": 3,
+                                        "type": "Mage",
+                                    }
                                 ],
                             }
                         }

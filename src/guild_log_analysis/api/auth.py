@@ -52,8 +52,7 @@ class CallbackHandler(BaseHTTPRequestHandler):
         self.send_header(HTTPConstants.CONTENT_TYPE_HEADER, "text/html")
         self.end_headers()
         self.wfile.write(
-            b"<html><body><h1>Authorization successful!</h1>"
-            b"<p>You can close this window.</p></body></html>"
+            b"<html><body><h1>Authorization successful!</h1>" b"<p>You can close this window.</p></body></html>"
         )
 
     def _send_error_response(self) -> None:
@@ -78,9 +77,7 @@ class TokenManager:
         :param cache_file: Path to token cache file
         """
         settings = Settings()
-        self.cache_file = cache_file or str(
-            settings.cache_directory / "token_cache.json"
-        )
+        self.cache_file = cache_file or str(settings.cache_directory / "token_cache.json")
 
     def load_cached_token(self) -> Optional[str]:
         """
@@ -184,18 +181,10 @@ class OAuthAuthenticator:
 
         :returns: Tuple of (code_verifier, code_challenge)
         """
-        code_verifier = (
-            base64.urlsafe_b64encode(secrets.token_bytes(32))
-            .decode("utf-8")
-            .rstrip("=")
-        )
+        code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8").rstrip("=")
 
         code_challenge = (
-            base64.urlsafe_b64encode(
-                hashlib.sha256(code_verifier.encode("utf-8")).digest()
-            )
-            .decode("utf-8")
-            .rstrip("=")
+            base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("utf-8")).digest()).decode("utf-8").rstrip("=")
         )
 
         return code_verifier, code_challenge
@@ -248,9 +237,7 @@ class OAuthAuthenticator:
         }
         return f"{settings.auth_url}?{urllib.parse.urlencode(params)}"
 
-    def _exchange_code_for_token(
-        self, auth_code: str, code_verifier: str
-    ) -> Dict[str, Any]:
+    def _exchange_code_for_token(self, auth_code: str, code_verifier: str) -> Dict[str, Any]:
         """
         Exchange authorization code for access token.
 
@@ -282,7 +269,7 @@ class OAuthAuthenticator:
 
 def get_access_token() -> str:
     """
-    Convenience function to get access token.
+    Return a valid access token.
 
     :returns: Valid access token
     :raises AuthenticationError: If authentication fails

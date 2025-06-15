@@ -59,9 +59,7 @@ class AuthenticationError(APIError):
 class RateLimitError(APIError):
     """Exception raised when API rate limit is exceeded."""
 
-    def __init__(
-        self, message: str, retry_after: Optional[int] = None, **kwargs
-    ) -> None:
+    def __init__(self, message: str, retry_after: Optional[int] = None, **kwargs) -> None:
         """
         Initialize the rate limit exception.
 

@@ -7,11 +7,7 @@ from unittest.mock import Mock, mock_open, patch
 import pytest
 import requests
 
-from src.guild_log_analysis.api.auth import (
-    OAuthAuthenticator,
-    TokenManager,
-    get_access_token,
-)
+from src.guild_log_analysis.api.auth import OAuthAuthenticator, TokenManager, get_access_token
 from src.guild_log_analysis.api.exceptions import AuthenticationError
 
 
@@ -19,7 +15,7 @@ class TestTokenManager:
     """Test cases for TokenManager class."""
 
     def setup_method(self):
-        """Setup method run before each test."""
+        """Set up the test environment before each test."""
         self.test_token_cache_file = "tests/cache/test_token_cache.json"
         self.test_cache_files_to_cleanup = []
 
@@ -169,7 +165,10 @@ class TestOAuthAuthenticator:
 
     def test_generate_pkce_params(self):
         """Test PKCE parameter generation."""
-        code_verifier, code_challenge = OAuthAuthenticator._generate_pkce_params()
+        (
+            code_verifier,
+            code_challenge,
+        ) = OAuthAuthenticator._generate_pkce_params()
 
         assert isinstance(code_verifier, str)
         assert isinstance(code_challenge, str)

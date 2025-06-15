@@ -6,7 +6,6 @@ This module sets up logging to both console and file with proper formatting.
 
 import logging
 import logging.handlers
-from pathlib import Path
 from typing import Optional
 
 from .settings import Settings
@@ -72,9 +71,7 @@ def setup_logging(settings: Optional[Settings] = None) -> None:
 
     # Log the configuration
     logger = logging.getLogger(__name__)
-    logger.info(
-        f"Logging configured - Level: {settings.log_level}, File: {log_file_path}"
-    )
+    logger.info(f"Logging configured - Level: {settings.log_level}, File: {log_file_path}")
 
 
 def get_logger(name: str) -> logging.Logger:

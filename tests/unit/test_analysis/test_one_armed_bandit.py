@@ -1,12 +1,8 @@
 """Tests for One-Armed Bandit analysis."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
-
-from src.guild_log_analysis.analysis.bosses.one_armed_bandit import (
-    OneArmedBanditAnalysis,
-)
+from src.guild_log_analysis.analysis.bosses.one_armed_bandit import OneArmedBanditAnalysis
 
 
 class TestOneArmedBanditAnalysis:
@@ -32,9 +28,7 @@ class TestOneArmedBanditAnalysis:
 
     def test_get_fight_ids_no_report(self, mock_api_client):
         """Test fight IDs retrieval with no report found."""
-        mock_api_client.make_request.return_value = {
-            "data": {"reportData": {"report": None}}
-        }
+        mock_api_client.make_request.return_value = {"data": {"reportData": {"report": None}}}
 
         analysis = OneArmedBanditAnalysis(mock_api_client)
         result = analysis.get_fight_ids("test_report")
@@ -43,9 +37,7 @@ class TestOneArmedBanditAnalysis:
 
     def test_get_fight_ids_no_fights(self, mock_api_client):
         """Test fight IDs retrieval with no fights found."""
-        mock_api_client.make_request.return_value = {
-            "data": {"reportData": {"report": {"fights": []}}}
-        }
+        mock_api_client.make_request.return_value = {"data": {"reportData": {"report": {"fights": []}}}}
 
         analysis = OneArmedBanditAnalysis(mock_api_client)
         result = analysis.get_fight_ids("test_report")
@@ -198,19 +190,13 @@ class TestOneArmedBanditAnalysis:
         assert len(analysis.results) == initial_results_count
 
     @patch.object(OneArmedBanditAnalysis, "analyze_interrupts")
-    def test_analyze_overload_interrupts(
-        self, mock_analyze_interrupts, mock_api_client, sample_players_data
-    ):
+    def test_analyze_overload_interrupts(self, mock_analyze_interrupts, mock_api_client, sample_players_data):
         """Test Overload! interrupts analysis."""
-        mock_analyze_interrupts.return_value = [
-            {"player_name": "TestPlayer1", "interrupts": 5}
-        ]
+        mock_analyze_interrupts.return_value = [{"player_name": "TestPlayer1", "interrupts": 5}]
 
         analysis = OneArmedBanditAnalysis(mock_api_client)
 
-        result = analysis._analyze_overload_interrupts(
-            "test_report", {1, 2}, sample_players_data
-        )
+        result = analysis._analyze_overload_interrupts("test_report", {1, 2}, sample_players_data)
 
         mock_analyze_interrupts.assert_called_once_with(
             report_code="test_report",
@@ -222,19 +208,13 @@ class TestOneArmedBanditAnalysis:
         assert len(result) == 1
 
     @patch.object(OneArmedBanditAnalysis, "analyze_debuff_uptime")
-    def test_analyze_high_roller_uptime(
-        self, mock_analyze_uptime, mock_api_client, sample_players_data
-    ):
+    def test_analyze_high_roller_uptime(self, mock_analyze_uptime, mock_api_client, sample_players_data):
         """Test High Roller uptime analysis."""
-        mock_analyze_uptime.return_value = [
-            {"player_name": "TestPlayer1", "uptime_percentage": 75.5}
-        ]
+        mock_analyze_uptime.return_value = [{"player_name": "TestPlayer1", "uptime_percentage": 75.5}]
 
         analysis = OneArmedBanditAnalysis(mock_api_client)
 
-        result = analysis._analyze_high_roller_uptime(
-            "test_report", {1, 2}, sample_players_data
-        )
+        result = analysis._analyze_high_roller_uptime("test_report", {1, 2}, sample_players_data)
 
         mock_analyze_uptime.assert_called_once_with(
             report_code="test_report",
@@ -246,19 +226,13 @@ class TestOneArmedBanditAnalysis:
         assert len(result) == 1
 
     @patch.object(OneArmedBanditAnalysis, "get_damage_to_actor")
-    def test_analyze_premium_dynamite_damage(
-        self, mock_get_damage, mock_api_client, sample_players_data
-    ):
+    def test_analyze_premium_dynamite_damage(self, mock_get_damage, mock_api_client, sample_players_data):
         """Test Premium Dynamite Booties damage analysis."""
-        mock_get_damage.return_value = [
-            {"player_name": "TestPlayer1", "damage": 500000}
-        ]
+        mock_get_damage.return_value = [{"player_name": "TestPlayer1", "damage": 500000}]
 
         analysis = OneArmedBanditAnalysis(mock_api_client)
 
-        result = analysis._analyze_damage_to_premium_dynamite_booties(
-            "test_report", {1, 2}, sample_players_data
-        )
+        result = analysis._analyze_damage_to_premium_dynamite_booties("test_report", {1, 2}, sample_players_data)
 
         mock_get_damage.assert_called_once_with(
             report_code="test_report",

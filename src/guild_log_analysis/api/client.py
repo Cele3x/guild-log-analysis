@@ -84,9 +84,7 @@ class CacheManager:
                 with open(self.cache_file, "r", encoding="utf-8") as f:
                     return json.load(f)
             except json.JSONDecodeError:
-                logger.warning(
-                    ErrorMessages.CACHE_CORRUPTED.format(cache_file=self.cache_file)
-                )
+                logger.warning(ErrorMessages.CACHE_CORRUPTED.format(cache_file=self.cache_file))
                 return {}
         return {}
 
@@ -115,7 +113,7 @@ class CacheManager:
         :returns: Unique cache key
         """
         if variables:
-            return f"{query}:{str(sorted(variables.items()))}"
+            return f"{query}: {str(sorted(variables.items()))}"
         return query
 
     def get(self, query: str, variables: Optional[Dict] = None) -> Optional[Any]:
@@ -182,9 +180,7 @@ class RateLimiter:
 
         :param rate_limit_seconds: Minimum seconds between requests
         """
-        self.rate_limit_seconds = (
-            rate_limit_seconds or 1.0
-        )  # Default 1 second rate limit
+        self.rate_limit_seconds = rate_limit_seconds or 1.0  # Default 1 second rate limit
         self.last_request_time = 0.0
 
     def wait_if_needed(self) -> None:
@@ -201,9 +197,7 @@ class RateLimiter:
 
 
 class WarcraftLogsAPIClient:
-    """
-    Warcraft Logs API client with caching, rate limiting, and error handling.
-    """
+    """Warcraft Logs API client with caching, rate limiting, and error handling."""
 
     def __init__(
         self,
@@ -231,7 +225,10 @@ class WarcraftLogsAPIClient:
         """
         session = requests.Session()
         session.headers.update(
-            {"Content-Type": "application/json", "User-Agent": "WoW-Guild-Analysis/1.0"}
+            {
+                "Content-Type": "application/json",
+                "User-Agent": "WoW-Guild-Analysis/1.0",
+            }
         )
         return session
 
@@ -243,7 +240,10 @@ class WarcraftLogsAPIClient:
         self.session.headers["Authorization"] = f"Bearer {self.access_token}"
 
     def make_request(
-        self, query: str, variables: Optional[Dict] = None, force_refresh: bool = False
+        self,
+        query: str,
+        variables: Optional[Dict] = None,
+        force_refresh: bool = False,
     ) -> Dict[str, Any]:
         """
         Make an API request with rate limiting and caching.
@@ -284,9 +284,7 @@ class WarcraftLogsAPIClient:
 
             # Check for GraphQL errors
             if "errors" in result:
-                error_messages = [
-                    error.get("message", "Unknown error") for error in result["errors"]
-                ]
+                error_messages = [error.get("message", "Unknown error") for error in result["errors"]]
                 raise APIError(f"GraphQL errors: {', '.join(error_messages)}")
 
             # Cache the result
@@ -340,9 +338,7 @@ class WarcraftLogsAPIClient:
         """Clear all cached data."""
         self.cache_manager.clear()
 
-    def invalidate_cache_entry(
-        self, query: str, variables: Optional[Dict] = None
-    ) -> None:
+    def invalidate_cache_entry(self, query: str, variables: Optional[Dict] = None) -> None:
         """
         Invalidate a specific cache entry.
 

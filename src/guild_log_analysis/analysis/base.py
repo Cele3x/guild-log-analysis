@@ -54,10 +54,14 @@ class BossAnalysisBase(ABC):
         :return: Set of fight IDs or None if not found
         """
         query = """
-        query GetFights($reportCode: String!, $encounterId: Int!, $difficulty: Int!) {
+        query GetFights(
+          $reportCode: String!, $encounterId: Int!, $difficulty: Int!
+        ) {
           reportData {
             report(code: $reportCode) {
-              fights(encounterID: $encounterId, difficulty: $difficulty) {
+              fights(
+                encounterID: $encounterId, difficulty: $difficulty
+              ) {
                 id
                 name
                 difficulty
@@ -89,7 +93,8 @@ class BossAnalysisBase(ABC):
         fights = report_data.get("fights", [])
         if not fights:
             logger.warning(
-                f"No fights found for boss {self.encounter_id} (difficulty {self.difficulty}) in report {report_code}"
+                f"No fights found for boss {self.encounter_id} "
+                f"(difficulty {self.difficulty}) in report {report_code}"
             )
             return None
 
@@ -100,9 +105,7 @@ class BossAnalysisBase(ABC):
             logger.warning(f"No valid fight IDs found in report {report_code}")
             return None
 
-        logger.info(
-            f'Found {len(fight_ids)} fights for boss "{self.boss_name}" in report {report_code}'
-        )
+        logger.info(f'Found {len(fight_ids)} fights for boss "{self.boss_name}" in report {report_code}')
         return fight_ids
 
     def get_start_time(self, report_code: str, fight_ids: Set[int]) -> Optional[float]:
@@ -152,9 +155,7 @@ class BossAnalysisBase(ABC):
 
         return earliest_unix_seconds
 
-    def get_total_fight_duration(
-        self, report_code: str, fight_ids: Set[int]
-    ) -> Optional[int]:
+    def get_total_fight_duration(self, report_code: str, fight_ids: Set[int]) -> Optional[int]:
         """
         Get the total duration in milliseconds for specified fight IDs.
 
@@ -198,18 +199,14 @@ class BossAnalysisBase(ABC):
                 total_duration_ms += fight_duration
                 logger.debug(f"Fight {fight['id']}: {fight_duration}ms")
 
-            logger.info(
-                f"Total duration for {len(fights)} fights: {total_duration_ms}ms"
-            )
+            logger.info(f"Total duration for {len(fights)} fights: {total_duration_ms}ms")
             return total_duration_ms
 
         except Exception as e:
             logger.error(f"Error getting fight durations: {e}")
             return None
 
-    def get_participants(
-        self, report_code: str, fight_ids: Set[int]
-    ) -> Optional[List[Dict[str, Any]]]:
+    def get_participants(self, report_code: str, fight_ids: Set[int]) -> Optional[List[Dict[str, Any]]]:
         """
         Get player details for specific fights in a report.
 
@@ -231,12 +228,7 @@ class BossAnalysisBase(ABC):
 
         result = self.api_client.make_request(query, variables)
 
-        player_details = (
-            result.get("data", {})
-            .get("reportData", {})
-            .get("report", {})
-            .get("playerDetails", {})
-        )
+        player_details = result.get("data", {}).get("reportData", {}).get("report", {}).get("playerDetails", {})
 
         if not player_details:
             logger.warning(
@@ -247,7 +239,11 @@ class BossAnalysisBase(ABC):
         players = []
 
         # Process each role
-        role_mappings = [("tanks", "tank"), ("healers", "healer"), ("dps", "dps")]
+        role_mappings = [
+            ("tanks", "tank"),
+            ("healers", "healer"),
+            ("dps", "dps"),
+        ]
 
         # Access the nested playerDetails data
         player_data = player_details["data"]["playerDetails"]
@@ -299,7 +295,7 @@ class BossAnalysisBase(ABC):
                     break
 
         if not matching_reports:
-            raise ValueError(f"Analysis '{analysis_name}' not found in data")
+            raise ValueError(f"Analysis '{analysis_name}' is missing from data")
 
         # Sort by starttime (latest first)
         matching_reports.sort(key=lambda x: x["starttime"], reverse=True)
@@ -370,11 +366,7 @@ class BossAnalysisBase(ABC):
 
         actors_result = self.api_client.make_request(actors_query, actors_variables)
         try:
-            if (
-                not actors_result
-                or "data" not in actors_result
-                or "reportData" not in actors_result["data"]
-            ):
+            if not actors_result or "data" not in actors_result or "reportData" not in actors_result["data"]:
                 logger.warning(f"No actors data returned for report {report_code}")
                 return []
         except (TypeError, AttributeError):
@@ -390,14 +382,10 @@ class BossAnalysisBase(ABC):
                 target_ids.append(actor["id"])
 
         if not target_ids:
-            logger.warning(
-                f"No targets found with game ID {target_game_id} in report {report_code}"
-            )
+            logger.warning(f"No targets found with game ID {target_game_id} in report {report_code}")
             return []
 
-        logger.info(
-            f"Found {len(target_ids)} targets with game ID {target_game_id}: {target_ids}"
-        )
+        logger.info(f"Found {len(target_ids)} targets with game ID {target_game_id}: {target_ids}")
 
         # Step 2: Get damage done data for each target and aggregate
         damage_query = """
@@ -438,11 +426,7 @@ class BossAnalysisBase(ABC):
             }
 
             damage_result = self.api_client.make_request(damage_query, damage_variables)
-            if (
-                not damage_result
-                or "data" not in damage_result
-                or "reportData" not in damage_result["data"]
-            ):
+            if not damage_result or "data" not in damage_result or "reportData" not in damage_result["data"]:
                 logger.warning(f"No damage data returned for target {target_id}")
                 continue
 
@@ -459,17 +443,13 @@ class BossAnalysisBase(ABC):
 
                 # Find matching player in report_players
                 matching_player = next(
-                    (
-                        player
-                        for player in report_players
-                        if player["name"] == player_name
-                    ),
+                    (player for player in report_players if player["name"] == player_name),
                     None,
                 )
                 if matching_player:
                     damage_totals[player_name] += total_damage
                 else:
-                    logger.debug(f"Player {player_name} not found in report_players")
+                    logger.debug(f"Player {player_name} is missing in report_players")
 
         # Create a dictionary to store unique player data
         unique_players = {}
@@ -562,13 +542,14 @@ class BossAnalysisBase(ABC):
         for event in events:
             source_id = event.get("sourceID")
             matching_player = next(
-                (player for player in report_players if player["id"] == source_id), None
+                (player for player in report_players if player["id"] == source_id),
+                None,
             )
 
             if matching_player:
                 interrupt_counts[matching_player["name"]] += 1
             else:
-                logger.debug(f"Source ID {source_id} not found in report_players")
+                logger.debug(f"Source ID {source_id} is missing in report_players")
 
         # Create a dictionary to store unique player data
         unique_players = {}
@@ -583,13 +564,8 @@ class BossAnalysisBase(ABC):
                 }
             else:
                 # If player exists, update interrupts if the new count is higher
-                if (
-                    interrupt_counts[player_name]
-                    > unique_players[player_name]["interrupts"]
-                ):
-                    unique_players[player_name]["interrupts"] = interrupt_counts[
-                        player_name
-                    ]
+                if interrupt_counts[player_name] > unique_players[player_name]["interrupts"]:
+                    unique_players[player_name]["interrupts"] = interrupt_counts[player_name]
 
         # Convert dictionary to list for DataFrame
         return list(unique_players.values())
@@ -647,12 +623,12 @@ class BossAnalysisBase(ABC):
 
         result = self.api_client.make_request(query, variables)
         if not result or "data" not in result or "reportData" not in result["data"]:
-            logger.warning(f"No data returned for debuff uptime query")
+            logger.warning("No data returned for debuff uptime query")
             return []
 
         table_data = result["data"]["reportData"]["report"]["table"]
         if not table_data or "data" not in table_data:
-            logger.warning(f"No table data found for debuff uptime")
+            logger.warning("No table data found for debuff uptime")
             return []
 
         # Get total time from the response
@@ -660,13 +636,16 @@ class BossAnalysisBase(ABC):
         total_time = data.get("totalTime", 0)  # Total time in milliseconds
 
         if not total_time:
-            logger.warning(f"Could not get total time from debuff query response")
+            logger.warning("Could not get total time from debuff query response")
             return []
 
         # Initialize uptime tracking for each player
         uptime_data = defaultdict(lambda: {"total_uptime": 0, "uptime_percentage": 0.0})
         for player in report_players:
-            uptime_data[player["name"]] = {"total_uptime": 0, "uptime_percentage": 0.0}
+            uptime_data[player["name"]] = {
+                "total_uptime": 0,
+                "uptime_percentage": 0.0,
+            }
 
         # Process auras data (debuff entries)
         auras = data.get("auras", [])
@@ -680,15 +659,13 @@ class BossAnalysisBase(ABC):
                 None,
             )
             if matching_player:
-                uptime_percentage = (
-                    (total_uptime_ms / total_time) * 100 if total_time > 0 else 0
-                )
+                uptime_percentage = (total_uptime_ms / total_time) * 100 if total_time > 0 else 0
                 uptime_data[actor_name] = {
                     "total_uptime": total_uptime_ms,
                     "uptime_percentage": uptime_percentage,
                 }
             else:
-                logger.debug(f"Player {actor_name} not found in report_players")
+                logger.debug(f"Player {actor_name} is missing in report_players")
 
         # Create a dictionary to store unique player data
         unique_players = {}
@@ -704,19 +681,17 @@ class BossAnalysisBase(ABC):
                 }
             else:
                 # If player exists, update uptime if the new percentage is higher
-                if (
-                    player_uptime["uptime_percentage"]
-                    > unique_players[player_name]["uptime_percentage"]
-                ):
-                    unique_players[player_name]["uptime_percentage"] = round(
-                        player_uptime["uptime_percentage"], 2
-                    )
+                if player_uptime["uptime_percentage"] > unique_players[player_name]["uptime_percentage"]:
+                    unique_players[player_name]["uptime_percentage"] = round(player_uptime["uptime_percentage"], 2)
 
         # Convert dictionary to list for DataFrame
         return list(unique_players.values())
 
     def _calculate_debuff_uptime(
-        self, events: List[Dict[str, Any]], player_name: str, total_duration_ms: int
+        self,
+        events: List[Dict[str, Any]],
+        player_name: str,
+        total_duration_ms: int,
     ) -> float:
         """
         Calculate debuff uptime percentage for a specific player.

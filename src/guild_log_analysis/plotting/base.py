@@ -124,21 +124,13 @@ class BaseTablePlot(ABC):
                     change = round(change, 2)
                 else:
                     # For number plots, calculate relative change per fight
-                    if (
-                        isinstance(self, NumberPlot)
-                        and self.current_fight_count
-                        and self.previous_fight_count
-                    ):
+                    if isinstance(self, NumberPlot) and self.current_fight_count and self.previous_fight_count:
                         # Calculate average per fight
                         current_avg = current / self.current_fight_count
                         previous_avg = previous / self.previous_fight_count
                         # Calculate relative change
                         change = current_avg - previous_avg
-                        formatted_change = (
-                            format_number(change, 0)
-                            if abs(change) > 100
-                            else format_number(change)
-                        )
+                        formatted_change = format_number(change, 0) if abs(change) > 100 else format_number(change)
                         # Add "+" prefix if positive and doesn't already have a sign
                         if change > 0 and not formatted_change.startswith(("+", "-")):
                             formatted_change = f"+ {formatted_change}"
@@ -149,18 +141,10 @@ class BaseTablePlot(ABC):
                             PlotStyleManager.get_change_color(change),
                         )
                     else:
-                        change = int(
-                            current - previous
-                        )  # Keep integers for interrupt counts
+                        change = int(current - previous)  # Keep integers for interrupt counts
 
                 return (
-                    (
-                        f"+ {change}"
-                        if change > 0
-                        else f"- {abs(change)}"
-                        if change < 0
-                        else str(change)
-                    ),
+                    (f"+ {change}" if change > 0 else f"- {abs(change)}" if change < 0 else str(change)),
                     PlotStyleManager.get_change_color(change),
                 )
             else:
@@ -233,13 +217,16 @@ class BaseTablePlot(ABC):
 
         # Draw header
         self._draw_header(
-            ax, columns, col_positions, len(self.df), table_width, header_height
+            ax,
+            columns,
+            col_positions,
+            len(self.df),
+            table_width,
+            header_height,
         )
 
         # Draw data rows
-        self._draw_data_rows(
-            ax, columns, col_positions, row_height, table_width, max_value
-        )
+        self._draw_data_rows(ax, columns, col_positions, row_height, table_width, max_value)
 
         # Set axis limits - tighten vertical spacing
         ax.set_xlim(-0.2, table_width + 0.2)
@@ -305,7 +292,7 @@ class BaseTablePlot(ABC):
                 (0, y_pos - row_height / 2),
                 table_width,
                 row_height,
-                facecolor=PlotColors.ROW_ALT if idx % 2 == 1 else PlotColors.CHART_BG,
+                facecolor=(PlotColors.ROW_ALT if idx % 2 == 1 else PlotColors.CHART_BG),
                 alpha=1 if idx % 2 == 1 else 0.2,
             )
             ax.add_patch(row_rect)
@@ -345,14 +332,17 @@ class BaseTablePlot(ABC):
 
             # Value bar (now in third column)
             self._draw_value_bar(
-                ax, col_positions[2], y_pos, current_value, max_value, class_color
+                ax,
+                col_positions[2],
+                y_pos,
+                current_value,
+                max_value,
+                class_color,
             )
 
             # Change indicator (now in fourth column)
             prev_value = row["previous_value"]
-            change_text, change_color = self._calculate_change(
-                current_value, prev_value
-            )
+            change_text, change_color = self._calculate_change(current_value, prev_value)
 
             ax.text(
                 col_positions[3] + 0.1,
@@ -422,12 +412,8 @@ class BaseTablePlot(ABC):
 
         # Clean the title for filename
         clean_title = re.sub(r"[^\w\s-]", "", self.title)  # Remove special chars
-        clean_title = re.sub(
-            r"[-\s]+", "_", clean_title
-        )  # Replace spaces/hyphens with underscores
-        clean_title = clean_title.strip(
-            "_"
-        ).lower()  # Remove leading/trailing underscores, lowercase
+        clean_title = re.sub(r"[-\s]+", "_", clean_title)  # Replace spaces/hyphens with underscores
+        clean_title = clean_title.strip("_").lower()  # Remove leading/trailing underscores, lowercase
 
         # Create filename
         filename = f"{date_stamp}_{clean_title}.png"
@@ -460,7 +446,10 @@ class BaseTablePlot(ABC):
         fig = self.create_plot()
         try:
             fig.savefig(
-                filename, dpi=dpi, bbox_inches="tight", facecolor=PlotColors.BACKGROUND
+                filename,
+                dpi=dpi,
+                bbox_inches="tight",
+                facecolor=PlotColors.BACKGROUND,
             )
             logger.info(f"Plot saved to {filename}")
             return filename

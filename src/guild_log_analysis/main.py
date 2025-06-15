@@ -11,7 +11,6 @@ from typing import Any, Dict
 from .api.auth import get_access_token
 from .api.client import WarcraftLogsAPIClient
 from .config.logging_config import setup_logging
-from .config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -52,25 +51,21 @@ class GuildLogAnalyzer:
         from .analysis.bosses.one_armed_bandit import OneArmedBanditAnalysis
 
         analysis = OneArmedBanditAnalysis(self.api_client)
-        logger.info(
-            f"Initialized One-Armed Bandit analysis for {len(report_codes)} reports"
-        )
+        logger.info(f"Initialized One-Armed Bandit analysis for {len(report_codes)} reports")
         analysis.analyze(report_codes)
         self.analyses["one_armed_bandit"] = analysis
 
     def generate_one_armed_bandit_plots(self) -> None:
         """Generate plots for One-Armed Bandit analysis."""
         if "one_armed_bandit" not in self.analyses:
-            logger.warning(
-                "No One-Armed Bandit analysis found. Run analyze_one_armed_bandit() first."
-            )
+            logger.warning("No One-Armed Bandit analysis found. Run analyze_one_armed_bandit() first.")
             return
 
         self.analyses["one_armed_bandit"].generate_plots()
 
 
 def main() -> None:
-    """Main entry point for the application."""
+    """Run the main entry point for the application."""
     # Set up logging for the main function
     setup_logging()
 

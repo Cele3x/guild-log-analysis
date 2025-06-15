@@ -30,6 +30,27 @@ flake8 src/ tests/         # Lint code
 mypy src/                  # Type checking
 ```
 
+#### Enhanced Pre-commit Configuration
+
+The project includes comprehensive pre-commit hooks that enforce CLAUDE.md guidelines:
+
+**Code Formatting & Style:**
+- Black with 79-character line length (PEP 8)
+- isort for import organization
+- flake8 with additional plugins for enhanced linting
+
+**Quality & Security:**
+- mypy for strict type checking (Python 3.13)
+- bandit for security vulnerability scanning
+- pydocstyle for reST docstring format validation
+
+**Additional Checks:**
+- File hygiene (trailing whitespace, end-of-file fixes)
+- YAML, JSON, TOML validation
+- Python best practices enforcement
+
+All hooks are configured to align with the code style guidelines in this document.
+
 ### Testing
 ```bash
 # Run all tests

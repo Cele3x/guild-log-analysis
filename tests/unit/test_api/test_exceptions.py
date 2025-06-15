@@ -1,7 +1,5 @@
 """Tests for API exceptions."""
 
-import pytest
-
 from src.guild_log_analysis.api.exceptions import (
     AnalysisError,
     APIError,
@@ -94,9 +92,7 @@ class TestRateLimitError:
         retry_after = 60
         status_code = 429
 
-        error = RateLimitError(
-            message, retry_after=retry_after, status_code=status_code
-        )
+        error = RateLimitError(message, retry_after=retry_after, status_code=status_code)
 
         assert error.message == message
         assert error.retry_after == retry_after

@@ -1,7 +1,8 @@
 """
 Utility functions for caching operations.
 
-This module provides helper functions for cache management and data serialization.
+This module provides helper functions for cache management and data
+serialization.
 """
 
 import hashlib
@@ -22,7 +23,10 @@ def generate_cache_key(*args: Any, **kwargs: Any) -> str:
     :returns: Unique cache key
     """
     # Create a string representation of all arguments
-    key_data = {"args": args, "kwargs": sorted(kwargs.items()) if kwargs else {}}
+    key_data = {
+        "args": args,
+        "kwargs": sorted(kwargs.items()) if kwargs else {},
+    }
 
     # Convert to JSON string for consistent representation
     key_string = json.dumps(key_data, sort_keys=True, default=str)

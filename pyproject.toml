@@ -9,10 +9,10 @@ description = "A comprehensive tool for analyzing World of Warcraft guild logs f
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Jonathan Sasse", email = "radiant.daemme0w@icloud.com"}
+    {name = "Jonathan Sasse", email = "jonathan.sasse@outlook.de"}
 ]
 maintainers = [
-    {name = "Jonathan Sasse", email = "radiant.daemme0w@icloud.com"}
+    {name = "Jonathan Sasse", email = "jonathan.sasse@outlook.de"}
 ]
 keywords = ["warcraft", "logs", "analysis", "guild", "wow"]
 classifiers = [

@@ -5,7 +5,7 @@ A comprehensive tool for analyzing World of Warcraft guild logs from Warcraft Lo
 ## Author
 
 **Jonathan Sasse**
-Email: radiant.daemme0w@icloud.com
+Email: jonathan.sasse@outlook.de
 
 ## Features
 

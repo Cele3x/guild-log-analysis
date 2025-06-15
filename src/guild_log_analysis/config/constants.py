@@ -53,14 +53,10 @@ class ErrorMessages:
 
     NO_ACCESS_TOKEN: Final[str] = "No access token provided"
     AUTH_FAILED: Final[str] = "Authentication failed"
-    CACHE_CORRUPTED: Final[
-        str
-    ] = "Cache file {cache_file} is corrupted and will be ignored"
+    CACHE_CORRUPTED: Final[str] = "Cache file {cache_file} is corrupted and will be ignored"
     API_REQUEST_FAILED: Final[str] = "API request failed: {error}"
     INVALID_REPORT_CODE: Final[str] = "Invalid report code: {report_code}"
-    NO_FIGHTS_FOUND: Final[
-        str
-    ] = "No fights found for encounter {encounter_id} in report {report_code}"
+    NO_FIGHTS_FOUND: Final[str] = "No fights found for encounter {encounter_id} in report {report_code}"
     NO_PLAYERS_FOUND: Final[str] = "No players found for report {report_code}"
 
 

@@ -1,29 +1,19 @@
 """Tests for API client functionality."""
 
-import json
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
-import requests
 from requests.exceptions import RequestException
 
-from src.guild_log_analysis.api.client import (
-    CacheManager,
-    RateLimiter,
-    WarcraftLogsAPIClient,
-)
-from src.guild_log_analysis.api.exceptions import (
-    APIError,
-    AuthenticationError,
-    RateLimitError,
-)
+from src.guild_log_analysis.api.client import CacheManager, RateLimiter, WarcraftLogsAPIClient
+from src.guild_log_analysis.api.exceptions import APIError, AuthenticationError, RateLimitError
 
 
 class TestCacheManager:
     """Test cases for CacheManager class."""
 
     def setup_method(self):
-        """Setup method run before each test."""
+        """Set up the test environment before each test."""
         self.test_cache_file = "tests/cache/test_cache.json"
         self.test_cache_files_to_cleanup = []
 
@@ -101,7 +91,7 @@ class TestCacheManager:
         query = "query { test }"
         variables = {"var1": "value1", "var2": "value2"}
         key = cache_manager._get_cache_key(query, variables)
-        expected = f"{query}:{str(sorted(variables.items()))}"
+        expected = f"{query}: {str(sorted(variables.items()))}"
         assert key == expected
 
     def test_get_and_set_cache(self):
@@ -234,8 +224,10 @@ class TestWarcraftLogsAPIClient:
         token = "test_token"
         client = WarcraftLogsAPIClient(access_token=token)
         client._update_auth_header()
+        actual_header = f"Bearer {client.access_token}"
 
         expected_header = f"Bearer {token}"
+        assert actual_header == expected_header
 
     def test_update_auth_header_no_token(self):
         """Test authorization header update without token."""

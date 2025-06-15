@@ -2,7 +2,6 @@
 
 from unittest.mock import Mock, patch
 
-import pandas as pd
 import pytest
 
 from src.guild_log_analysis.main import GuildLogAnalyzer
@@ -14,9 +13,7 @@ class TestFullAnalysisWorkflow:
 
     @patch("src.guild_log_analysis.main.get_access_token")
     @patch("src.guild_log_analysis.main.WarcraftLogsAPIClient")
-    def test_analyzer_initialization(
-        self, mock_api_client_class, mock_get_access_token
-    ):
+    def test_analyzer_initialization(self, mock_api_client_class, mock_get_access_token):
         """Test analyzer initialization with OAuth token acquisition."""
         mock_get_access_token.return_value = "oauth_token"
 
@@ -40,11 +37,10 @@ class TestFullAnalysisWorkflow:
         analyzer = GuildLogAnalyzer(access_token="provided_token")
 
         mock_api_client_class.assert_called_once_with(access_token="provided_token")
+        assert analyzer.api_client == mock_api_client
 
     @patch("src.guild_log_analysis.main.get_access_token")
-    @patch(
-        "src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis"
-    )
+    @patch("src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis")
     def test_analyze_one_armed_bandit(self, mock_analysis_class, mock_get_access_token):
         """Test One-Armed Bandit analysis workflow."""
         mock_get_access_token.return_value = "oauth_token"
@@ -64,9 +60,7 @@ class TestFullAnalysisWorkflow:
     @patch("src.guild_log_analysis.main.get_access_token")
     @patch("src.guild_log_analysis.plotting.NumberPlot")
     @patch("src.guild_log_analysis.plotting.PercentagePlot")
-    def test_generate_plots_success(
-        self, mock_percentage_plot, mock_number_plot, mock_get_access_token
-    ):
+    def test_generate_plots_success(self, mock_percentage_plot, mock_number_plot, mock_get_access_token):
         """Test successful plot generation."""
         mock_get_access_token.return_value = "oauth_token"
 
@@ -179,11 +173,7 @@ class TestAPIIntegration:
             sample_player_details_response,  # get_participants
             sample_interrupt_events,  # analyze_interrupts
             {  # analyze_debuff_uptime events
-                "data": {
-                    "reportData": {
-                        "report": {"events": {"data": [], "nextPageTimestamp": None}}
-                    }
-                }
+                "data": {"reportData": {"report": {"events": {"data": [], "nextPageTimestamp": None}}}}
             },
             sample_actors_response,  # get_damage_to_actor - actors
             sample_damage_response,  # get_damage_to_actor - damage

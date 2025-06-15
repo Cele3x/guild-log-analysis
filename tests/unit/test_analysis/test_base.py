@@ -1,12 +1,10 @@
 """Tests for base analysis functionality."""
 
 from typing import Set
-from unittest.mock import Mock, patch
 
 import pytest
 
 from src.guild_log_analysis.analysis.base import BossAnalysisBase
-from src.guild_log_analysis.api import DataNotFoundError, WarcraftLogsAPIClient
 
 
 class ConcreteBossAnalysis(BossAnalysisBase):
@@ -47,9 +45,7 @@ class TestBossAnalysisBase:
 
     def test_get_start_time_no_report(self, mock_api_client):
         """Test start time retrieval with no report found."""
-        mock_api_client.make_request.return_value = {
-            "data": {"reportData": {"report": None}}
-        }
+        mock_api_client.make_request.return_value = {"data": {"reportData": {"report": None}}}
 
         analysis = ConcreteBossAnalysis(mock_api_client)
         result = analysis.get_start_time("test_report", {1, 2})
@@ -59,9 +55,7 @@ class TestBossAnalysisBase:
     def test_get_start_time_no_fights(self, mock_api_client):
         """Test start time retrieval with no fights found."""
         mock_api_client.make_request.return_value = {
-            "data": {
-                "reportData": {"report": {"startTime": 1640995200000, "fights": []}}
-            }
+            "data": {"reportData": {"report": {"startTime": 1640995200000, "fights": []}}}
         }
 
         analysis = ConcreteBossAnalysis(mock_api_client)
@@ -69,9 +63,7 @@ class TestBossAnalysisBase:
 
         assert result is None
 
-    def test_get_total_fight_duration_success(
-        self, mock_api_client, sample_api_response
-    ):
+    def test_get_total_fight_duration_success(self, mock_api_client, sample_api_response):
         """Test successful fight duration calculation."""
         mock_api_client.make_request.return_value = sample_api_response
 
@@ -82,9 +74,7 @@ class TestBossAnalysisBase:
         assert result == 600000
         mock_api_client.make_request.assert_called_once()
 
-    def test_get_participants_success(
-        self, mock_api_client, sample_player_details_response
-    ):
+    def test_get_participants_success(self, mock_api_client, sample_player_details_response):
         """Test successful participant retrieval."""
         mock_api_client.make_request.return_value = sample_player_details_response
 
@@ -95,9 +85,7 @@ class TestBossAnalysisBase:
 
     def test_get_participants_no_data(self, mock_api_client):
         """Test participant retrieval with no data."""
-        mock_api_client.make_request.return_value = {
-            "data": {"reportData": {"report": {"playerDetails": None}}}
-        }
+        mock_api_client.make_request.return_value = {"data": {"reportData": {"report": {"playerDetails": None}}}}
 
         analysis = ConcreteBossAnalysis(mock_api_client)
         result = analysis.get_participants("test_report", {1, 2})
@@ -109,9 +97,7 @@ class TestBossAnalysisBase:
         analysis = ConcreteBossAnalysis(mock_api_client)
         analysis.results = sample_analysis_results
 
-        current_data, previous_dict = analysis.find_analysis_data(
-            "Overload! Interrupts", "interrupts", "player_name"
-        )
+        current_data, previous_dict = analysis.find_analysis_data("Overload! Interrupts", "interrupts", "player_name")
 
         assert len(current_data) == 2
 
@@ -126,9 +112,7 @@ class TestBossAnalysisBase:
         analysis.results = []
 
         with pytest.raises(ValueError):
-            analysis.find_analysis_data(
-                "NonexistentAnalysis", "some_column", "name_column"
-            )
+            analysis.find_analysis_data("NonexistentAnalysis", "some_column", "name_column")
 
     def test_get_damage_to_actor_success(
         self,
@@ -157,9 +141,7 @@ class TestBossAnalysisBase:
 
         assert len(result) == 3  # All players should be in result
         # Find TestPlayer1 in results
-        player1_data = next(
-            (p for p in result if p["player_name"] == "TestPlayer1"), None
-        )
+        player1_data = next((p for p in result if p["player_name"] == "TestPlayer1"), None)
         assert player1_data is not None
 
     def test_get_damage_to_actor_no_targets(self, mock_api_client, sample_players_data):
@@ -197,29 +179,21 @@ class TestBossAnalysisBase:
 
         assert result == []
 
-    def test_analyze_interrupts_success(
-        self, mock_api_client, sample_interrupt_events, sample_players_data
-    ):
+    def test_analyze_interrupts_success(self, mock_api_client, sample_interrupt_events, sample_players_data):
         """Test successful interrupt analysis."""
         mock_api_client.make_request.return_value = sample_interrupt_events
 
         analysis = ConcreteBossAnalysis(mock_api_client)
         analysis.encounter_id = 3014
         analysis.difficulty = 5
-        result = analysis.analyze_interrupts(
-            "test_report", {1, 2}, sample_players_data, 460582.0
-        )
+        result = analysis.analyze_interrupts("test_report", {1, 2}, sample_players_data, 460582.0)
 
         assert len(result) == 3  # All players should be in result
         # Find TestPlayer1 in results
-        player1_data = next(
-            (p for p in result if p["player_name"] == "TestPlayer1"), None
-        )
+        player1_data = next((p for p in result if p["player_name"] == "TestPlayer1"), None)
         assert player1_data is not None
 
-    def test_analyze_debuff_uptime_success(
-        self, mock_api_client, sample_debuff_events, sample_players_data
-    ):
+    def test_analyze_debuff_uptime_success(self, mock_api_client, sample_debuff_events, sample_players_data):
         """Test successful debuff uptime analysis."""
         # Mock the debuff uptime table response
         debuff_table_response = {
@@ -251,15 +225,11 @@ class TestBossAnalysisBase:
         analysis = ConcreteBossAnalysis(mock_api_client)
         analysis.encounter_id = 3014
         analysis.difficulty = 5
-        result = analysis.analyze_debuff_uptime(
-            "test_report", {1, 2}, sample_players_data, 460444.0
-        )
+        result = analysis.analyze_debuff_uptime("test_report", {1, 2}, sample_players_data, 460444.0)
 
         assert len(result) == 3  # All players should be in result
         # Find TestPlayer1 in results
-        player1_data = next(
-            (p for p in result if p["player_name"] == "TestPlayer1"), None
-        )
+        player1_data = next((p for p in result if p["player_name"] == "TestPlayer1"), None)
         assert player1_data is not None
         # Should have some uptime percentage (exact calculation depends on implementation)
 

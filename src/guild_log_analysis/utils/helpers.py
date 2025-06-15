@@ -7,7 +7,6 @@ This module provides various utility functions used throughout the application.
 import logging
 import re
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
@@ -22,11 +21,11 @@ def format_number(value: Union[int, float], decimal_places: int = 2) -> str:
     :returns: Formatted string
     """
     if abs(value) >= 1_000_000_000:  # Billion
-        return f"{value/1_000_000_000:.{decimal_places}f}b"
+        return f"{value / 1_000_000_000:.{decimal_places}f}b"
     elif abs(value) >= 1_000_000:  # Million
-        return f"{value/1_000_000:.{decimal_places}f}m"
+        return f"{value / 1_000_000:.{decimal_places}f}m"
     elif abs(value) >= 1_000:  # Thousand
-        return f"{value/1_000:.{decimal_places}f}k"
+        return f"{value / 1_000:.{decimal_places}f}k"
     else:
         # If the value is an integer, display it without decimals
         if value.is_integer():
@@ -106,9 +105,7 @@ def validate_report_code(report_code: str) -> bool:
     return bool(re.match(pattern, report_code))
 
 
-def calculate_change_percentage(
-    current: Union[int, float], previous: Union[int, float]
-) -> Optional[float]:
+def calculate_change_percentage(current: Union[int, float], previous: Union[int, float]) -> Optional[float]:
     """
     Calculate percentage change between two values.
 
@@ -131,7 +128,11 @@ def group_players_by_role(
     :param players: List of player dictionaries
     :returns: Dictionary with roles as keys and player lists as values
     """
-    role_groups = {"tank": [], "healer": [], "dps": []}
+    role_groups: Dict[str, List[Dict[str, Any]]] = {
+        "tank": [],
+        "healer": [],
+        "dps": [],
+    }
 
     for player in players:
         role = player.get("role", "dps")
@@ -143,9 +144,7 @@ def group_players_by_role(
     return role_groups
 
 
-def filter_players_by_class(
-    players: List[Dict[str, Any]], class_name: str
-) -> List[Dict[str, Any]]:
+def filter_players_by_class(players: List[Dict[str, Any]], class_name: str) -> List[Dict[str, Any]]:
     """
     Filter players by their class.
 
@@ -153,15 +152,13 @@ def filter_players_by_class(
     :param class_name: Class name to filter by
     :returns: Filtered list of players
     """
-    return [
-        player
-        for player in players
-        if player.get("class", "").lower() == class_name.lower()
-    ]
+    return [player for player in players if player.get("class", "").lower() == class_name.lower()]
 
 
 def merge_player_data(
-    players1: List[Dict[str, Any]], players2: List[Dict[str, Any]], key: str = "name"
+    players1: List[Dict[str, Any]],
+    players2: List[Dict[str, Any]],
+    key: str = "name",
 ) -> List[Dict[str, Any]]:
     """
     Merge two lists of player data based on a key.
@@ -186,9 +183,7 @@ def merge_player_data(
     return merged
 
 
-def deduplicate_players(
-    players: List[Dict[str, Any]], key: str = "name"
-) -> List[Dict[str, Any]]:
+def deduplicate_players(players: List[Dict[str, Any]], key: str = "name") -> List[Dict[str, Any]]:
     """
     Remove duplicate players based on a key.
 

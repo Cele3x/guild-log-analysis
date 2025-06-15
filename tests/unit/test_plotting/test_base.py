@@ -2,16 +2,10 @@
 
 from unittest.mock import Mock, patch
 
-import matplotlib.pyplot as plt
 import pandas as pd
-import pytest
 
 from src.guild_log_analysis.config import PlotColors
-from src.guild_log_analysis.plotting.base import (
-    BaseTablePlot,
-    NumberPlot,
-    PercentagePlot,
-)
+from src.guild_log_analysis.plotting.base import BaseTablePlot, NumberPlot, PercentagePlot
 from src.guild_log_analysis.plotting.styles import PlotStyleManager
 
 
@@ -95,9 +89,7 @@ class TestBaseTablePlot:
 
     def test_init_with_all_parameters(self):
         """Test BaseTablePlot initialization with all parameters."""
-        df = pd.DataFrame(
-            {"player_name": ["Player1", "Player2"], "damage": [1000, 2000]}
-        )
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "damage": [1000, 2000]})
         previous_data = {"Player1": 800, "Player2": 1500}
 
         plot = ConcreteTablePlot(
@@ -120,7 +112,10 @@ class TestBaseTablePlot:
     def test_prepare_data_sorting(self):
         """Test that data is sorted by value column in descending order."""
         df = pd.DataFrame(
-            {"player_name": ["Player1", "Player2", "Player3"], "value": [100, 300, 200]}
+            {
+                "player_name": ["Player1", "Player2", "Player3"],
+                "value": [100, 300, 200],
+            }
         )
 
         plot = ConcreteTablePlot(title="Test Plot", date="2023-01-01", df=df)
@@ -136,7 +131,10 @@ class TestBaseTablePlot:
         previous_data = {"Player1": 80, "Player2": 150}
 
         plot = ConcreteTablePlot(
-            title="Test Plot", date="2023-01-01", df=df, previous_data=previous_data
+            title="Test Plot",
+            date="2023-01-01",
+            df=df,
+            previous_data=previous_data,
         )
 
         # Check that previous values were mapped correctly
@@ -228,7 +226,10 @@ class TestBaseTablePlot:
 
         mock_create_plot.assert_called_once()
         mock_fig.savefig.assert_called_once_with(
-            "test.png", dpi=150, bbox_inches="tight", facecolor=PlotColors.BACKGROUND
+            "test.png",
+            dpi=150,
+            bbox_inches="tight",
+            facecolor=PlotColors.BACKGROUND,
         )
         mock_close.assert_called_once_with(mock_fig)
 

@@ -6,7 +6,7 @@ This module provides styling constants and configuration for matplotlib plots.
 
 import matplotlib.pyplot as plt
 
-from ..config import DEFAULT_FONT, FONT_FAMILIES, ClassColors, PlotColors
+from ..config import DEFAULT_FONT, ClassColors, PlotColors
 
 
 class PlotStyleManager:
