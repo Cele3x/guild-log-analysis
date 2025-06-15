@@ -9,7 +9,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def generate_cache_key(*args: Any, **kwargs: Any) -> str:
     return hashlib.md5(key_string.encode("utf-8")).hexdigest()
 
 
-def safe_json_load(file_path: Path) -> Optional[Dict[str, Any]]:
+def safe_json_load(file_path: Path) -> Optional[dict[str, Any]]:
     """
     Safely load JSON from file with error handling.
 

@@ -15,7 +15,7 @@ import urllib.parse
 import webbrowser
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from ..config import ErrorMessages
 from ..config.settings import Settings
@@ -237,7 +237,7 @@ class OAuthAuthenticator:
         }
         return f"{settings.auth_url}?{urllib.parse.urlencode(params)}"
 
-    def _exchange_code_for_token(self, auth_code: str, code_verifier: str) -> Dict[str, Any]:
+    def _exchange_code_for_token(self, auth_code: str, code_verifier: str) -> dict[str, Any]:
         """
         Exchange authorization code for access token.
 

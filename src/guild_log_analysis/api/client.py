@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import requests
 
@@ -31,7 +31,7 @@ class CacheManager:
         """
         settings = Settings()
         self.cache_file = cache_file or str(settings.cache_directory / "api_cache.json")
-        self.cache: Dict[str, Any] = self._load_cache()
+        self.cache: dict[str, Any] = self._load_cache()
 
     def _get_cache_file_size(self) -> int:
         """
@@ -73,7 +73,7 @@ class CacheManager:
         except OSError as e:
             logger.error(f"Failed to rotate cache files: {e}")
 
-    def _load_cache(self) -> Dict[str, Any]:
+    def _load_cache(self) -> dict[str, Any]:
         """
         Load cache from file if it exists.
 
@@ -104,7 +104,7 @@ class CacheManager:
         except IOError as e:
             logger.error(f"Failed to save cache: {e}")
 
-    def _get_cache_key(self, query: str, variables: Optional[Dict] = None) -> str:
+    def _get_cache_key(self, query: str, variables: Optional[dict] = None) -> str:
         """
         Generate a unique cache key for the query and variables.
 
@@ -116,7 +116,7 @@ class CacheManager:
             return f"{query}: {str(sorted(variables.items()))}"
         return query
 
-    def get(self, query: str, variables: Optional[Dict] = None) -> Optional[Any]:
+    def get(self, query: str, variables: Optional[dict] = None) -> Optional[Any]:
         """
         Get cached response.
 
@@ -127,7 +127,7 @@ class CacheManager:
         cache_key = self._get_cache_key(query, variables)
         return self.cache.get(cache_key)
 
-    def set(self, query: str, variables: Optional[Dict], response: Any) -> None:
+    def set(self, query: str, variables: Optional[dict], response: Any) -> None:
         """
         Cache response.
 
@@ -158,7 +158,7 @@ class CacheManager:
             except OSError as e:
                 logger.error(f"Failed to remove main cache file: {e}")
 
-    def invalidate_entry(self, query: str, variables: Optional[Dict] = None) -> None:
+    def invalidate_entry(self, query: str, variables: Optional[dict] = None) -> None:
         """
         Invalidate a specific cache entry.
 
@@ -242,9 +242,9 @@ class WarcraftLogsAPIClient:
     def make_request(
         self,
         query: str,
-        variables: Optional[Dict] = None,
+        variables: Optional[dict] = None,
         force_refresh: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Make an API request with rate limiting and caching.
 
@@ -338,7 +338,7 @@ class WarcraftLogsAPIClient:
         """Clear all cached data."""
         self.cache_manager.clear()
 
-    def invalidate_cache_entry(self, query: str, variables: Optional[Dict] = None) -> None:
+    def invalidate_cache_entry(self, query: str, variables: Optional[dict] = None) -> None:
         """
         Invalidate a specific cache entry.
 

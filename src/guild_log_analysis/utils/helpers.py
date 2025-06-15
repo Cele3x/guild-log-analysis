@@ -7,7 +7,7 @@ This module provides various utility functions used throughout the application.
 import logging
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def sanitize_filename(filename: str) -> str:
     return sanitized
 
 
-def safe_get_nested(data: Dict[str, Any], keys: List[str], default: Any = None) -> Any:
+def safe_get_nested(data: dict[str, Any], keys: list[str], default: Any = None) -> Any:
     """
     Safely get a nested value from a dictionary.
 
@@ -120,15 +120,15 @@ def calculate_change_percentage(current: Union[int, float], previous: Union[int,
 
 
 def group_players_by_role(
-    players: List[Dict[str, Any]],
-) -> Dict[str, List[Dict[str, Any]]]:
+    players: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     """
     Group players by their role.
 
     :param players: List of player dictionaries
     :returns: Dictionary with roles as keys and player lists as values
     """
-    role_groups: Dict[str, List[Dict[str, Any]]] = {
+    role_groups: dict[str, list[dict[str, Any]]] = {
         "tank": [],
         "healer": [],
         "dps": [],
@@ -144,7 +144,7 @@ def group_players_by_role(
     return role_groups
 
 
-def filter_players_by_class(players: List[Dict[str, Any]], class_name: str) -> List[Dict[str, Any]]:
+def filter_players_by_class(players: list[dict[str, Any]], class_name: str) -> list[dict[str, Any]]:
     """
     Filter players by their class.
 
@@ -156,10 +156,10 @@ def filter_players_by_class(players: List[Dict[str, Any]], class_name: str) -> L
 
 
 def merge_player_data(
-    players1: List[Dict[str, Any]],
-    players2: List[Dict[str, Any]],
+    players1: list[dict[str, Any]],
+    players2: list[dict[str, Any]],
     key: str = "name",
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Merge two lists of player data based on a key.
 
@@ -183,7 +183,7 @@ def merge_player_data(
     return merged
 
 
-def deduplicate_players(players: List[Dict[str, Any]], key: str = "name") -> List[Dict[str, Any]]:
+def deduplicate_players(players: list[dict[str, Any]], key: str = "name") -> list[dict[str, Any]]:
     """
     Remove duplicate players based on a key.
 

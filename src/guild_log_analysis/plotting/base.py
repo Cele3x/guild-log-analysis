@@ -10,7 +10,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -35,7 +35,7 @@ class BaseTablePlot(ABC):
         title: str,
         date: str,
         df: pd.DataFrame,
-        previous_data: Optional[Dict[str, Any]] = None,
+        previous_data: Optional[dict[str, Any]] = None,
         value_column: str = "value",
         value_column_name: Optional[str] = None,
         name_column: str = "player_name",
@@ -104,7 +104,7 @@ class BaseTablePlot(ABC):
         """
         pass
 
-    def _calculate_change(self, current: Any, previous: Any) -> Tuple[str, str]:
+    def _calculate_change(self, current: Any, previous: Any) -> tuple[str, str]:
         """
         Calculate and format change between current and previous values.
 
@@ -153,7 +153,7 @@ class BaseTablePlot(ABC):
         except (TypeError, ValueError):
             return "N/A", PlotColors.TEXT_SECONDARY
 
-    def create_plot(self, figsize: Optional[Tuple[int, int]] = None) -> plt.Figure:
+    def create_plot(self, figsize: Optional[tuple[int, int]] = None) -> plt.Figure:
         """
         Create and return the complete plot.
 
@@ -242,8 +242,8 @@ class BaseTablePlot(ABC):
     @staticmethod
     def _draw_header(
         ax: plt.Axes,
-        columns: List[Dict],
-        col_positions: List[float],
+        columns: list[dict],
+        col_positions: list[float],
         num_rows: int,
         table_width: float,
         header_height: float,
@@ -277,8 +277,8 @@ class BaseTablePlot(ABC):
     def _draw_data_rows(
         self,
         ax: plt.Axes,
-        columns: List[Dict],
-        col_positions: List[float],
+        columns: list[dict],
+        col_positions: list[float],
         row_height: float,
         table_width: float,
         max_value: Any,
