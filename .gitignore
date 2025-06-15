@@ -173,6 +173,7 @@ cache/*.json
 tests/**/*.json
 logs/*.logs
 plots/*.png
+tests/**/*.png
 
 # OS-specific files
 .DS_Store
