@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.guild_log_analysis.analysis.registry import get_registered_bosses
 from src.guild_log_analysis.main import GuildLogAnalyzer
 
 
@@ -14,7 +15,7 @@ class TestFullAnalysisWorkflow:
     @patch("src.guild_log_analysis.main.get_access_token")
     @patch("src.guild_log_analysis.main.WarcraftLogsAPIClient")
     def test_analyzer_initialization(self, mock_api_client_class, mock_get_access_token):
-        """Test analyzer initialization with OAuth token acquisition."""
+        """Test analyzer initialization with OAuth token acquisition and auto-registration."""
         mock_get_access_token.return_value = "oauth_token"
 
         mock_api_client = Mock()
@@ -28,6 +29,12 @@ class TestFullAnalysisWorkflow:
         assert analyzer.api_client == mock_api_client
         assert analyzer.analyses == {}
 
+        # Check that auto-registration created methods
+        assert hasattr(analyzer, "analyze_one_armed_bandit")
+        assert hasattr(analyzer, "generate_one_armed_bandit_plots")
+        assert callable(getattr(analyzer, "analyze_one_armed_bandit"))
+        assert callable(getattr(analyzer, "generate_one_armed_bandit_plots"))
+
     @patch("src.guild_log_analysis.main.WarcraftLogsAPIClient")
     def test_analyzer_initialization_with_token(self, mock_api_client_class):
         """Test analyzer initialization with provided token."""
@@ -39,9 +46,53 @@ class TestFullAnalysisWorkflow:
         mock_api_client_class.assert_called_once_with(access_token="provided_token")
         assert analyzer.api_client == mock_api_client
 
+    def test_auto_registration_system(self):
+        """Test that the auto-registration system works correctly."""
+        # Import to trigger registration
+        import src.guild_log_analysis.analysis.bosses.one_armed_bandit  # noqa: F401
+
+        # Check that boss was registered
+        registered = get_registered_bosses()
+        assert "one_armed_bandit" in registered
+
+        # Create analyzer and verify methods were created
+        with patch("src.guild_log_analysis.main.get_access_token") as mock_token:
+            mock_token.return_value = "test_token"
+            analyzer = GuildLogAnalyzer()
+
+            # Check auto-generated methods exist
+            assert hasattr(analyzer, "analyze_one_armed_bandit")
+            assert hasattr(analyzer, "generate_one_armed_bandit_plots")
+
+            # Check they are callable
+            assert callable(analyzer.analyze_one_armed_bandit)
+            assert callable(analyzer.generate_one_armed_bandit_plots)
+
+    @patch("src.guild_log_analysis.main.get_access_token")
+    def test_analyze_one_armed_bandit_auto_generated(self, mock_get_access_token):
+        """Test auto-generated analyze method works."""
+        mock_get_access_token.return_value = "oauth_token"
+
+        analyzer = GuildLogAnalyzer()
+
+        # Mock the analysis class that gets created internally
+        with patch(
+            "src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis"
+        ) as mock_analysis_class:
+            mock_analysis = Mock()
+            mock_analysis_class.return_value = mock_analysis
+
+            report_codes = ["report1", "report2"]
+            analyzer.analyze_one_armed_bandit(report_codes)
+
+            # Verify the analysis was created and analyze was called
+            mock_analysis_class.assert_called_once_with(analyzer.api_client)
+            mock_analysis.analyze.assert_called_once_with(report_codes)
+            assert analyzer.analyses["one_armed_bandit"] == mock_analysis
+
     @patch("src.guild_log_analysis.main.get_access_token")
     @patch("src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis")
-    def test_analyze_one_armed_bandit(self, mock_analysis_class, mock_get_access_token):
+    def test_analyze_one_armed_bandit_legacy_compatibility(self, mock_analysis_class, mock_get_access_token):
         """Test One-Armed Bandit analysis workflow."""
         mock_get_access_token.return_value = "oauth_token"
 

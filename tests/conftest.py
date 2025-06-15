@@ -506,3 +506,58 @@ def sample_debuff_events():
             }
         }
     }
+
+
+@pytest.fixture
+def mock_registry_boss():
+    """Create a mock boss for registry testing."""
+    from src.guild_log_analysis.analysis.base import BossAnalysisBase
+
+    class MockRegistryBoss(BossAnalysisBase):
+        def __init__(self, api_client):
+            super().__init__(api_client)
+            self.boss_name = "Mock Boss"
+            self.encounter_id = 9999
+            self.difficulty = 5
+
+        ANALYSIS_CONFIG = [{"name": "Mock Analysis", "type": "interrupts", "ability_id": 12345}]
+
+        PLOT_CONFIG = [
+            {
+                "analysis_name": "Mock Analysis",
+                "plot_type": "NumberPlot",
+                "title": "Mock Plot",
+                "value_column": "test_value",
+                "value_column_name": "Test",
+            }
+        ]
+
+    return MockRegistryBoss
+
+
+@pytest.fixture
+def sample_configuration_analysis_results():
+    """Sample analysis results for configuration-based testing."""
+    return [
+        {
+            "starttime": 1640995200.0,
+            "reportCode": "config_report",
+            "analysis": [
+                {
+                    "name": "Test Interrupts",
+                    "data": [
+                        {"player_name": "Player1", "class": "warrior", "role": "tank", "interrupts": 3},
+                        {"player_name": "Player2", "class": "priest", "role": "healer", "interrupts": 1},
+                    ],
+                },
+                {
+                    "name": "Test Damage",
+                    "data": [
+                        {"player_name": "Player1", "class": "warrior", "role": "tank", "test_damage": 750000},
+                        {"player_name": "Player2", "class": "priest", "role": "healer", "test_damage": 450000},
+                    ],
+                },
+            ],
+            "fight_ids": {1, 2, 3},
+        }
+    ]
