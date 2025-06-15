@@ -1,0 +1,36 @@
+# Virtual Environment Aliases for Guild Log Analysis
+# Source this file to get convenient aliases
+
+VENV_PATH="/home/jonathan/.virtualenvs/guild-log-analysis"
+PYTHON_PATH="$VENV_PATH/bin/python"
+
+# Activate virtual environment
+alias venv-activate="source $VENV_PATH/bin/activate"
+
+# Python commands with virtual environment
+alias venv-python="$PYTHON_PATH"
+alias venv-pip="$VENV_PATH/bin/pip"
+
+# Development commands
+venv-test() { source "$VENV_PATH/bin/activate" && "$PYTHON_PATH" -m pytest "$@"; }
+venv-mypy() { source "$VENV_PATH/bin/activate" && "$PYTHON_PATH" -m mypy "$@"; }
+venv-flake8() { source "$VENV_PATH/bin/activate" && "$PYTHON_PATH" -m flake8 "$@"; }
+venv-black() { source "$VENV_PATH/bin/activate" && "$PYTHON_PATH" -m black "$@"; }
+venv-isort() { source "$VENV_PATH/bin/activate" && "$PYTHON_PATH" -m isort "$@"; }
+
+# Project commands
+alias venv-install="source $VENV_PATH/bin/activate && pip install -e ."
+alias venv-install-dev="source $VENV_PATH/bin/activate && pip install -r requirements/dev.txt"
+alias venv-install-test="source $VENV_PATH/bin/activate && pip install -r requirements/test.txt"
+
+echo "Guild Log Analysis virtual environment aliases loaded!"
+echo "Available aliases:"
+echo "  venv-activate     - Activate virtual environment"
+echo "  venv-python       - Run Python with venv"
+echo "  venv-test         - Run tests"
+echo "  venv-mypy         - Type checking"
+echo "  venv-flake8       - Code linting"
+echo "  venv-black        - Code formatting"
+echo "  venv-install      - Install project in development mode"
+echo ""
+echo "Usage example: venv-test tests/unit/"
