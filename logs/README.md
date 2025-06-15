@@ -28,4 +28,3 @@ Enable debug logging for detailed troubleshooting:
 ```bash
 export WOW_LOG_LEVEL=DEBUG
 ```
-

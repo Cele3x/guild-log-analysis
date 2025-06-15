@@ -4,16 +4,23 @@ This directory contains generated plot images from the analysis.
 
 ## Plot Types
 
-- **Interrupt Plots** - Player interrupt performance
-- **Uptime Plots** - Debuff uptime percentages  
-- **Damage Plots** - Damage to specific targets
+**One-Armed Bandit Analysis Plots:**
+- **Overload! Interrupts** - Player interrupt performance for Overload! ability
+- **High Roller Uptime** - Debuff uptime percentages for High Roller
+- **Premium Dynamite Booties Damage** - Damage to Premium Dynamite Booties (Geschenke)
+- **Reel Assistants Damage** - Damage to Reel Assistants
+- **Boss Damage** - Damage to the One-Armed Bandit boss
+- **Absorbed Damage to Reel Assistants** - Absorbed damage analysis
 
 ## File Naming
 
-Plots are typically saved with descriptive names:
-- `overload_interrupts_2024-01-01.png`
-- `high_roller_uptime_2024-01-01.png`
-- `dynamite_damage_2024-01-01.png`
+Plots are automatically generated with date prefix and descriptive names:
+- `2025-01-15_overload_interrupts.png`
+- `2025-01-15_high_roller_uptime.png`
+- `2025-01-15_schaden_auf_geschenke.png`
+- `2025-01-15_schaden_auf_reel_assistants.png`
+- `2025-01-15_schaden_auf_boss.png`
+- `2025-01-15_absorbierter_schaden_auf_reel_assistants.png`
 
 ## Configuration
 
@@ -22,4 +29,3 @@ Plot DPI and format can be configured:
 ```python
 plot.save("filename.png", dpi=300)
 ```
-

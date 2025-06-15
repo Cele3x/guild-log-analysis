@@ -47,4 +47,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export functionality for reports
 - Performance metrics dashboard
 - Guild comparison features
-

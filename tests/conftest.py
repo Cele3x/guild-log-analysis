@@ -5,10 +5,11 @@ This module provides common test fixtures and configuration
 used across all test modules.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock
-from typing import Dict, Any, List
 import json
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 from src.guild_log_analysis.api import WarcraftLogsAPIClient
 
@@ -24,21 +25,9 @@ def mock_api_client():
 def sample_player_data():
     """Sample player data for testing."""
     return [
-        {
-            'player_name': 'TestPlayer1',
-            'class': 'warrior',
-            'role': 'tank'
-        },
-        {
-            'player_name': 'TestPlayer2',
-            'class': 'priest',
-            'role': 'healer'
-        },
-        {
-            'player_name': 'TestPlayer3',
-            'class': 'mage',
-            'role': 'dps'
-        }
+        {"player_name": "TestPlayer1", "class": "warrior", "role": "tank"},
+        {"player_name": "TestPlayer2", "class": "priest", "role": "healer"},
+        {"player_name": "TestPlayer3", "class": "mage", "role": "dps"},
     ]
 
 
@@ -46,28 +35,28 @@ def sample_player_data():
 def sample_fight_data():
     """Sample fight data for testing."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'fights': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "fights": [
                         {
-                            'id': 1,
-                            'encounterID': 2917,  # One-Armed Bandit
-                            'difficulty': 5,  # Mythic
-                            'kill': True,
-                            'startTime': 1000,
-                            'endTime': 300000,
-                            'name': 'One-Armed Bandit'
+                            "id": 1,
+                            "encounterID": 2917,  # One-Armed Bandit
+                            "difficulty": 5,  # Mythic
+                            "kill": True,
+                            "startTime": 1000,
+                            "endTime": 300000,
+                            "name": "One-Armed Bandit",
                         },
                         {
-                            'id': 2,
-                            'encounterID': 2917,
-                            'difficulty': 5,
-                            'kill': False,
-                            'startTime': 400000,
-                            'endTime': 600000,
-                            'name': 'One-Armed Bandit'
-                        }
+                            "id": 2,
+                            "encounterID": 2917,
+                            "difficulty": 5,
+                            "kill": False,
+                            "startTime": 400000,
+                            "endTime": 600000,
+                            "name": "One-Armed Bandit",
+                        },
                     ]
                 }
             }
@@ -79,22 +68,22 @@ def sample_fight_data():
 def sample_damage_data():
     """Sample damage data for testing."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'table': {
-                        'data': {
-                            'entries': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "table": {
+                        "data": {
+                            "entries": [
                                 {
-                                    'name': 'TestPlayer1',
-                                    'total': 1000000,
-                                    'type': 'Player'
+                                    "name": "TestPlayer1",
+                                    "total": 1000000,
+                                    "type": "Player",
                                 },
                                 {
-                                    'name': 'TestPlayer2', 
-                                    'total': 800000,
-                                    'type': 'Player'
-                                }
+                                    "name": "TestPlayer2",
+                                    "total": 800000,
+                                    "type": "Player",
+                                },
                             ]
                         }
                     }
@@ -108,25 +97,25 @@ def sample_damage_data():
 def sample_events_data():
     """Sample events data for testing."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'events': {
-                        'data': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "events": {
+                        "data": [
                             {
-                                'timestamp': 1500,
-                                'type': 'cast',
-                                'sourceID': 1,
-                                'targetID': 2,
-                                'abilityGameID': 12345
+                                "timestamp": 1500,
+                                "type": "cast",
+                                "sourceID": 1,
+                                "targetID": 2,
+                                "abilityGameID": 12345,
                             },
                             {
-                                'timestamp': 2500,
-                                'type': 'damage',
-                                'sourceID': 1,
-                                'targetID': 3,
-                                'amount': 50000
-                            }
+                                "timestamp": 2500,
+                                "type": "damage",
+                                "sourceID": 1,
+                                "targetID": 3,
+                                "amount": 50000,
+                            },
                         ]
                     }
                 }
@@ -139,17 +128,17 @@ def sample_events_data():
 def sample_debuff_data():
     """Sample debuff data for testing."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'table': {
-                        'data': {
-                            'auras': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "table": {
+                        "data": {
+                            "auras": [
                                 {
-                                    'name': 'High Roller',
-                                    'guid': 123456,
-                                    'totalUptime': 45000,  # 45 seconds
-                                    'totalUses': 3
+                                    "name": "High Roller",
+                                    "guid": 123456,
+                                    "totalUptime": 45000,  # 45 seconds
+                                    "totalUses": 3,
                                 }
                             ]
                         }
@@ -164,27 +153,27 @@ def sample_debuff_data():
 def sample_interrupts_data():
     """Sample interrupts data for testing."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'events': {
-                        'data': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "events": {
+                        "data": [
                             {
-                                'timestamp': 1500,
-                                'type': 'interrupt',
-                                'sourceID': 1,
-                                'targetID': 2,
-                                'abilityGameID': 12345,
-                                'extraAbilityGameID': 67890
+                                "timestamp": 1500,
+                                "type": "interrupt",
+                                "sourceID": 1,
+                                "targetID": 2,
+                                "abilityGameID": 12345,
+                                "extraAbilityGameID": 67890,
                             },
                             {
-                                'timestamp': 2500,
-                                'type': 'interrupt',
-                                'sourceID': 2,
-                                'targetID': 3,
-                                'abilityGameID': 12345,
-                                'extraAbilityGameID': 67890
-                            }
+                                "timestamp": 2500,
+                                "type": "interrupt",
+                                "sourceID": 2,
+                                "targetID": 3,
+                                "abilityGameID": 12345,
+                                "extraAbilityGameID": 67890,
+                            },
                         ]
                     }
                 }
@@ -197,48 +186,48 @@ def sample_interrupts_data():
 def mock_analysis_results():
     """Mock analysis results for testing."""
     return {
-        'overload_interrupts': {
-            'results': [
+        "overload_interrupts": {
+            "results": [
                 {
-                    'name': 'Overload! Interrupts',
-                    'data': [
+                    "name": "Overload! Interrupts",
+                    "data": [
                         {
-                            'player_name': 'TestPlayer1',
-                            'class': 'warrior',
-                            'role': 'tank',
-                            'interrupts': 5
+                            "player_name": "TestPlayer1",
+                            "class": "warrior",
+                            "role": "tank",
+                            "interrupts": 5,
                         },
                         {
-                            'player_name': 'TestPlayer2',
-                            'class': 'priest',
-                            'role': 'healer',
-                            'interrupts': 2
-                        }
-                    ]
+                            "player_name": "TestPlayer2",
+                            "class": "priest",
+                            "role": "healer",
+                            "interrupts": 2,
+                        },
+                    ],
                 }
             ]
         },
-        'high_roller_uptime': {
-            'results': [
+        "high_roller_uptime": {
+            "results": [
                 {
-                    'name': 'Overload! Interrupts',
-                    'data': [
+                    "name": "Overload! Interrupts",
+                    "data": [
                         {
-                            'player_name': 'TestPlayer1',
-                            'class': 'warrior',
-                            'role': 'tank',
-                            'interrupts': 3
+                            "player_name": "TestPlayer1",
+                            "class": "warrior",
+                            "role": "tank",
+                            "interrupts": 3,
                         },
                         {
-                            'player_name': 'TestPlayer2',
-                            'class': 'priest',
-                            'role': 'healer',
-                            'interrupts': 1
-                        }
-                    ]
+                            "player_name": "TestPlayer2",
+                            "class": "priest",
+                            "role": "healer",
+                            "interrupts": 1,
+                        },
+                    ],
                 }
             ]
-        }
+        },
     }
 
 
@@ -259,30 +248,30 @@ def mock_settings():
 def sample_api_response():
     """Sample API response for analysis tests."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'startTime': 1640995200000,
-                    'fights': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "startTime": 1640995200000,
+                    "fights": [
                         {
-                            'id': 1,
-                            'encounterID': 3014,  # One-Armed Bandit
-                            'difficulty': 5,  # Mythic
-                            'kill': True,
-                            'startTime': 0,
-                            'endTime': 300000,
-                            'name': 'One-Armed Bandit'
+                            "id": 1,
+                            "encounterID": 3014,  # One-Armed Bandit
+                            "difficulty": 5,  # Mythic
+                            "kill": True,
+                            "startTime": 0,
+                            "endTime": 300000,
+                            "name": "One-Armed Bandit",
                         },
                         {
-                            'id': 2,
-                            'encounterID': 3014,
-                            'difficulty': 5,
-                            'kill': False,
-                            'startTime': 400000,
-                            'endTime': 700000,
-                            'name': 'One-Armed Bandit'
-                        }
-                    ]
+                            "id": 2,
+                            "encounterID": 3014,
+                            "difficulty": 5,
+                            "kill": False,
+                            "startTime": 400000,
+                            "endTime": 700000,
+                            "name": "One-Armed Bandit",
+                        },
+                    ],
                 }
             }
         }
@@ -293,33 +282,21 @@ def sample_api_response():
 def sample_player_details_response():
     """Sample player details response for analysis tests."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'playerDetails': {
-                        'data': {
-                            'playerDetails': {
-                                'tanks': [
-                                    {
-                                        'name': 'TestPlayer1',
-                                        'id': 1,
-                                        'type': 'Warrior'
-                                    }
+        "data": {
+            "reportData": {
+                "report": {
+                    "playerDetails": {
+                        "data": {
+                            "playerDetails": {
+                                "tanks": [
+                                    {"name": "TestPlayer1", "id": 1, "type": "Warrior"}
                                 ],
-                                'healers': [
-                                    {
-                                        'name': 'TestPlayer2',
-                                        'id': 2,
-                                        'type': 'Priest'
-                                    }
+                                "healers": [
+                                    {"name": "TestPlayer2", "id": 2, "type": "Priest"}
                                 ],
-                                'dps': [
-                                    {
-                                        'name': 'TestPlayer3',
-                                        'id': 3,
-                                        'type': 'Mage'
-                                    }
-                                ]
+                                "dps": [
+                                    {"name": "TestPlayer3", "id": 3, "type": "Mage"}
+                                ],
                             }
                         }
                     }
@@ -334,51 +311,51 @@ def sample_analysis_results():
     """Sample analysis results for testing."""
     return [
         {
-            'starttime': 1640995200.0,
-            'reportCode': 'latest_report',
-            'analysis': [
+            "starttime": 1640995200.0,
+            "reportCode": "latest_report",
+            "analysis": [
                 {
-                    'name': 'Overload! Interrupts',
-                    'data': [
+                    "name": "Overload! Interrupts",
+                    "data": [
                         {
-                            'player_name': 'TestPlayer1',
-                            'class': 'warrior',
-                            'role': 'tank',
-                            'interrupts': 5
+                            "player_name": "TestPlayer1",
+                            "class": "warrior",
+                            "role": "tank",
+                            "interrupts": 5,
                         },
                         {
-                            'player_name': 'TestPlayer2',
-                            'class': 'priest',
-                            'role': 'healer',
-                            'interrupts': 2
-                        }
-                    ]
+                            "player_name": "TestPlayer2",
+                            "class": "priest",
+                            "role": "healer",
+                            "interrupts": 2,
+                        },
+                    ],
                 }
-            ]
+            ],
         },
         {
-            'starttime': 1640995100.0,
-            'reportCode': 'previous_report',
-            'analysis': [
+            "starttime": 1640995100.0,
+            "reportCode": "previous_report",
+            "analysis": [
                 {
-                    'name': 'Overload! Interrupts',
-                    'data': [
+                    "name": "Overload! Interrupts",
+                    "data": [
                         {
-                            'player_name': 'TestPlayer1',
-                            'class': 'warrior',
-                            'role': 'tank',
-                            'interrupts': 3
+                            "player_name": "TestPlayer1",
+                            "class": "warrior",
+                            "role": "tank",
+                            "interrupts": 3,
                         },
                         {
-                            'player_name': 'TestPlayer2',
-                            'class': 'priest',
-                            'role': 'healer',
-                            'interrupts': 1
-                        }
-                    ]
+                            "player_name": "TestPlayer2",
+                            "class": "priest",
+                            "role": "healer",
+                            "interrupts": 1,
+                        },
+                    ],
                 }
-            ]
-        }
+            ],
+        },
     ]
 
 
@@ -386,17 +363,17 @@ def sample_analysis_results():
 def sample_actors_response():
     """Sample actors response for damage analysis tests."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'masterData': {
-                        'actors': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "masterData": {
+                        "actors": [
                             {
-                                'id': 100,
-                                'name': 'Premium Dynamite Booties',
-                                'gameID': 231027,
-                                'type': 'NPC',
-                                'subType': 'Enemy'
+                                "id": 100,
+                                "name": "Premium Dynamite Booties",
+                                "gameID": 231027,
+                                "type": "NPC",
+                                "subType": "Enemy",
                             }
                         ]
                     }
@@ -410,27 +387,27 @@ def sample_actors_response():
 def sample_damage_response():
     """Sample damage response for damage analysis tests."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'table': {
-                        'data': {
-                            'entries': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "table": {
+                        "data": {
+                            "entries": [
                                 {
-                                    'name': 'TestPlayer1',
-                                    'total': 1000000,
-                                    'type': 'Player'
+                                    "name": "TestPlayer1",
+                                    "total": 1000000,
+                                    "type": "Player",
                                 },
                                 {
-                                    'name': 'TestPlayer2',
-                                    'total': 800000,
-                                    'type': 'Player'
+                                    "name": "TestPlayer2",
+                                    "total": 800000,
+                                    "type": "Player",
                                 },
                                 {
-                                    'name': 'TestPlayer3',
-                                    'total': 600000,
-                                    'type': 'Player'
-                                }
+                                    "name": "TestPlayer3",
+                                    "total": 600000,
+                                    "type": "Player",
+                                },
                             ]
                         }
                     }
@@ -444,24 +421,9 @@ def sample_damage_response():
 def sample_players_data():
     """Sample players data for testing."""
     return [
-        {
-            'name': 'TestPlayer1',
-            'type': 'warrior',
-            'role': 'tank',
-            'id': 1
-        },
-        {
-            'name': 'TestPlayer2',
-            'type': 'priest',
-            'role': 'healer',
-            'id': 2
-        },
-        {
-            'name': 'TestPlayer3',
-            'type': 'mage',
-            'role': 'dps',
-            'id': 3
-        }
+        {"name": "TestPlayer1", "type": "warrior", "role": "tank", "id": 1},
+        {"name": "TestPlayer2", "type": "priest", "role": "healer", "id": 2},
+        {"name": "TestPlayer3", "type": "mage", "role": "dps", "id": 3},
     ]
 
 
@@ -469,27 +431,27 @@ def sample_players_data():
 def sample_interrupt_events():
     """Sample interrupt events for testing."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'events': {
-                        'data': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "events": {
+                        "data": [
                             {
-                                'timestamp': 1500,
-                                'type': 'interrupt',
-                                'sourceID': 1,
-                                'targetID': 2,
-                                'abilityGameID': 460582,
-                                'targetName': 'TestPlayer1'
+                                "timestamp": 1500,
+                                "type": "interrupt",
+                                "sourceID": 1,
+                                "targetID": 2,
+                                "abilityGameID": 460582,
+                                "targetName": "TestPlayer1",
                             },
                             {
-                                'timestamp': 2500,
-                                'type': 'interrupt',
-                                'sourceID': 2,
-                                'targetID': 3,
-                                'abilityGameID': 460582,
-                                'targetName': 'TestPlayer2'
-                            }
+                                "timestamp": 2500,
+                                "type": "interrupt",
+                                "sourceID": 2,
+                                "targetID": 3,
+                                "abilityGameID": 460582,
+                                "targetName": "TestPlayer2",
+                            },
                         ]
                     }
                 }
@@ -502,36 +464,35 @@ def sample_interrupt_events():
 def sample_debuff_events():
     """Sample debuff events for testing."""
     return {
-        'data': {
-            'reportData': {
-                'report': {
-                    'events': {
-                        'data': [
+        "data": {
+            "reportData": {
+                "report": {
+                    "events": {
+                        "data": [
                             {
-                                'timestamp': 1000,
-                                'type': 'applydebuff',
-                                'targetID': 1,
-                                'abilityGameID': 460444,
-                                'targetName': 'TestPlayer1'
+                                "timestamp": 1000,
+                                "type": "applydebuff",
+                                "targetID": 1,
+                                "abilityGameID": 460444,
+                                "targetName": "TestPlayer1",
                             },
                             {
-                                'timestamp': 3000,
-                                'type': 'removedebuff',
-                                'targetID': 1,
-                                'abilityGameID': 460444,
-                                'targetName': 'TestPlayer1'
+                                "timestamp": 3000,
+                                "type": "removedebuff",
+                                "targetID": 1,
+                                "abilityGameID": 460444,
+                                "targetName": "TestPlayer1",
                             },
                             {
-                                'timestamp': 2000,
-                                'type': 'applydebuff',
-                                'targetID': 2,
-                                'abilityGameID': 460444,
-                                'targetName': 'TestPlayer2'
-                            }
+                                "timestamp": 2000,
+                                "type": "applydebuff",
+                                "targetID": 2,
+                                "abilityGameID": 460444,
+                                "targetName": "TestPlayer2",
+                            },
                         ]
                     }
                 }
             }
         }
     }
-

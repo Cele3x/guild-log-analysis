@@ -25,7 +25,7 @@ pre-commit run --all-files
 
 # Manual tool execution
 black src/ tests/          # Format code
-isort src/ tests/          # Sort imports  
+isort src/ tests/          # Sort imports
 flake8 src/ tests/         # Lint code
 mypy src/                  # Type checking
 ```
@@ -64,7 +64,7 @@ WOW_REDIRECT_URI=http://localhost:8080/callback
 
 1. Main analyzer initializes API client with OAuth token
 2. Boss-specific analysis classes query Warcraft Logs GraphQL API
-3. Raw data is processed using base class methods (`get_fight_ids`, `get_participants`, `get_damage_to_actor`, `analyze_interrupts`, `analyze_debuff_uptime`)  
+3. Raw data is processed using base class methods (`get_fight_ids`, `get_participants`, `get_damage_to_actor`, `analyze_interrupts`, `analyze_debuff_uptime`)
 4. Results stored in `self.results` list with structured analysis data
 5. Plotting classes generate visualizations from processed results
 
@@ -84,7 +84,7 @@ Settings loaded via `Settings` class from environment variables with `.env` file
 
 Custom exceptions in `src/guild_log_analysis/api/exceptions.py` handle different failure scenarios:
 - `AuthenticationError`: OAuth token issues
-- `RateLimitError`: API rate limiting  
+- `RateLimitError`: API rate limiting
 - `APIError`: General API failures
 
 ### Caching Strategy

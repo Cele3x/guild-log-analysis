@@ -4,7 +4,7 @@ A comprehensive tool for analyzing World of Warcraft guild logs from Warcraft Lo
 
 ## Author
 
-**Jonathan Sasse**  
+**Jonathan Sasse**
 Email: radiant.daemme0w@icloud.com
 
 ## Features
@@ -47,16 +47,18 @@ pip install -r requirements/test.txt
 ### Method 3: Using Virtual Environment (Best Practice)
 ```bash
 # Create a virtual environment
-python -m venv venv
+python -m venv ~/.virtualenvs/guild-log-analysis
 
 # Activate it (Linux/Mac)
-source venv/bin/activate
+source ~/.virtualenvs/guild-log-analysis/bin/activate
 # Or on Windows:
-# venv\Scripts\activate
+# ~/.virtualenvs/guild-log-analysis/Scripts/activate
 
 # Install the package
 pip install -e .
 ```
+
+**Note**: The project was developed using virtual environment at `/home/jonathan/.virtualenvs/guild-log-analysis`
 
 ## Configuration
 
@@ -67,9 +69,8 @@ pip install -e .
 
 2. Edit `.env` and add your Warcraft Logs API credentials:
    ```
-   WARCRAFT_LOGS_CLIENT_ID=your_client_id
-   WARCRAFT_LOGS_CLIENT_SECRET=your_client_secret
-   WARCRAFT_LOGS_ACCESS_TOKEN=your_access_token
+   WOW_CLIENT_ID=your_client_id
+   WOW_REDIRECT_URI=http://localhost:8080/callback
    ```
 
 ## Usage
@@ -99,14 +100,14 @@ from guild_log_analysis.analysis.base import BossAnalysisBase
 
 class NewBossAnalysis(BossAnalysisBase):
     """Analysis for New Boss encounters."""
-    
-    def __init__(self, api_client):
+
+    def __init__(self, api_client: WarcraftLogsAPIClient) -> None:
         super().__init__(api_client)
         self.boss_name = "New Boss"
         self.encounter_id = 1234  # Your encounter ID
         self.difficulty = 5  # Mythic
-    
-    def analyze(self, report_codes):
+
+    def analyze(self, report_codes: list[str]) -> None:
         """Implement your analysis logic here."""
         # Your custom analysis implementation
         pass
@@ -116,10 +117,10 @@ Then add a simple method to the main analyzer:
 
 ```python
 # In main.py
-def analyze_new_boss(self, report_codes):
+def analyze_new_boss(self, report_codes: list[str]) -> None:
     """Analyze New Boss encounters."""
     from guild_log_analysis.analysis.bosses.new_boss import NewBossAnalysis
-    
+
     analysis = NewBossAnalysis(self.api_client)
     analysis.analyze(report_codes)
     self.analyses['new_boss'] = analysis
@@ -172,20 +173,20 @@ python -m pytest tests/integration/ # Integration tests only
 ### Code Quality
 
 ```bash
-# Format code
-black src/ tests/
+# Install and setup pre-commit hooks
+pip install pre-commit
+pre-commit install
 
-# Sort imports
-isort src/ tests/
+# Run pre-commit on all files
+pre-commit run --all-files
 
-# Lint code
-flake8 src/ tests/
-
-# Type checking
-mypy src/
+# Manual tool execution
+black src/ tests/          # Format code
+isort src/ tests/          # Sort imports
+flake8 src/ tests/         # Lint code
+mypy src/                  # Type checking
 ```
 
 ## License
 
 MIT License - see LICENSE file for details.
-

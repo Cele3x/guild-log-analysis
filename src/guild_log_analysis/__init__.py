@@ -13,8 +13,7 @@ from .analysis.bosses.one_armed_bandit import OneArmedBanditAnalysis
 from .api.client import WarcraftLogsAPIClient
 
 __all__ = [
-    "BossAnalysisBase", 
+    "BossAnalysisBase",
     "OneArmedBanditAnalysis",
     "WarcraftLogsAPIClient",
 ]
-

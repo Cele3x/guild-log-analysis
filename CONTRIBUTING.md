@@ -1,6 +1,6 @@
-# Contributing to WoW Guild Analysis
+# Contributing to Guild Log Analysis
 
-Thank you for your interest in contributing to WoW Guild Analysis! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Guild Log Analysis! This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
@@ -46,7 +46,7 @@ Feature suggestions are welcome! Please:
 
 ### Prerequisites
 
-- Python 3.11 or higher
+- Python 3.13 or higher (target version)
 - Git
 - pip
 
@@ -54,33 +54,51 @@ Feature suggestions are welcome! Please:
 
 ```bash
 # Clone your fork
-git clone https://github.com/yourusername/wow-guild-analysis.git
-cd wow-guild-analysis
+git clone https://github.com/yourusername/guild-log-analysis.git
+cd guild-log-analysis
 
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install in development mode
-pip install -e ".[dev,test]"
+# Install in development mode with all dependencies
+pip install -e .
+
+# Or install specific requirement sets
+pip install -r requirements/dev.txt   # Development tools
+pip install -r requirements/test.txt  # Testing framework
 
 # Install pre-commit hooks
+pip install pre-commit
 pre-commit install
+```
+
+### Environment Configuration
+
+The application requires a `.env` file with Warcraft Logs API credentials:
+
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env with your credentials
+WOW_CLIENT_ID=your_client_id
+WOW_REDIRECT_URI=http://localhost:8080/callback
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-pytest
+python -m pytest tests/
 
 # Run with coverage
-pytest --cov=src/wow_guild_analysis --cov-report=html
+python -m pytest tests/ --cov=src/guild_log_analysis --cov-report=term-missing
 
 # Run specific test categories
-pytest tests/unit/
-pytest tests/integration/
-pytest -m "not slow"  # Skip slow tests
+python -m pytest tests/unit/        # Unit tests only
+python -m pytest tests/integration/ # Integration tests only
+python -m pytest -m "not slow"      # Skip slow tests
 ```
 
 ### Code Quality
@@ -107,11 +125,23 @@ pre-commit run --all-files
 ### Python Style
 
 - Follow **PEP 8** guidelines
-- Use **Black** for code formatting (line length: 100)
-- Use **isort** for import sorting
-- Pass **flake8** linting
-- Include **type hints** for all functions
+- Target **Python 3.13** features and syntax
+- Use **Black** for code formatting (line length: 88)
+- Use **isort** for import sorting with black profile
+- Pass **flake8** linting with docstring checks
+- Include **type hints** for all functions using modern syntax
 - Write **docstrings** in reStructuredText format
+- Use modern type hints: `dict[K, V]`, `list[T]`, `set[T]`, `tuple[T, ...]`
+- Avoid importing `Dict`, `List`, `Set`, `Tuple` from typing unless necessary
+- Only use typing module for advanced types like `Union`, `Optional`, `Protocol`
+
+### Development Principles
+
+- **Apply SOLID principles** for maintainable code architecture
+- **Ensure code modularity** - keep functions and classes focused on single responsibilities
+- **Implement appropriate error handling** using custom exceptions and proper logging
+- **Consider performance implications** especially for API calls and data processing
+- **Prefer constants over repeating strings** to avoid magic numbers and strings
 
 ### Example Function
 
@@ -119,14 +149,14 @@ pre-commit run --all-files
 def analyze_interrupts(
     self,
     report_code: str,
-    fight_ids: Set[int],
-    report_players: List[Dict[str, Any]],
+    fight_ids: set[int],
+    report_players: list[dict[str, Any]],
     ability_id: float,
     analysis_name: str
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Analyze interrupt events for a specific ability.
-    
+
     :param report_code: Warcraft Logs report code
     :param fight_ids: Set of fight IDs to analyze
     :param report_players: List of player data dictionaries
@@ -158,7 +188,7 @@ ability_id = 460582
 Use appropriate custom exceptions:
 
 ```python
-from wow_guild_analysis.api.exceptions import APIError, DataNotFoundError
+from guild_log_analysis.api.exceptions import APIError, DataNotFoundError
 
 try:
     result = api_client.make_request(query)
@@ -181,10 +211,10 @@ def test_get_fight_ids_success(self, mock_api_client, sample_api_response):
     # Arrange
     mock_api_client.make_request.return_value = sample_api_response
     analysis = OneArmedBanditAnalysis(mock_api_client)
-    
+
     # Act
     result = analysis.get_fight_ids("test_report")
-    
+
     # Assert
     assert result == {1, 2}
     mock_api_client.make_request.assert_called_once()
@@ -194,23 +224,32 @@ def test_get_fight_ids_success(self, mock_api_client, sample_api_response):
 
 ### Adding New Boss Analysis
 
-1. Create new file in `src/wow_guild_analysis/analysis/bosses/`
-2. Inherit from `BossAnalysisBase`
-3. Add constants to `config/constants.py`
-4. Create tests in `tests/unit/test_analysis/`
-5. Update documentation
+1. Create new file in `src/guild_log_analysis/analysis/bosses/new_boss.py`
+2. Inherit from `BossAnalysisBase` abstract class
+3. Set `boss_name`, `encounter_id`, and `difficulty` attributes
+4. Implement `analyze(report_codes)` method
+5. Add corresponding method to `GuildLogAnalyzer` class
+6. Add constants to `config/constants.py`
+7. Create comprehensive tests in `tests/unit/test_analysis/`
+8. Update documentation and examples
 
 ### File Organization
 
 ```
-src/wow_guild_analysis/
+src/guild_log_analysis/
 ├── config/          # Configuration and constants
 ├── api/             # API client and authentication
+│   ├── client.py    # WarcraftLogsAPIClient with caching
+│   ├── auth.py      # OAuth authentication
+│   └── exceptions.py # Custom API exceptions
 ├── analysis/        # Analysis modules
-│   ├── base.py      # Base classes
+│   ├── base.py      # BossAnalysisBase abstract class
 │   └── bosses/      # Boss-specific implementations
 ├── plotting/        # Visualization modules
-└── utils/           # Utility functions
+│   ├── base.py      # BaseTablePlot abstract class
+│   └── styles.py    # Plot styling and colors
+├── utils/           # Utility functions
+└── main.py          # GuildLogAnalyzer main interface
 ```
 
 ## Documentation
@@ -223,10 +262,10 @@ Use reStructuredText format for all docstrings:
 def function_name(param1: str, param2: int) -> bool:
     """
     Brief description of the function.
-    
+
     Longer description if needed, explaining the purpose,
     behavior, and any important details.
-    
+
     :param param1: Description of first parameter
     :param param2: Description of second parameter
     :returns: Description of return value
@@ -247,31 +286,30 @@ When adding features, update:
 
 ### Commit Message Format
 
-Use conventional commit format:
+Follow these guidelines for consistent commit messages:
 
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
+- Start with a short imperative sentence (max 50 chars) summarizing the changes
+- Use present tense (e.g., "Add feature" not "Added feature")
+- Leave a blank line after the first sentence
+- Provide a more detailed explanation (max 2-3 sentences) if needed
+- Keep the entire message under 74 characters per line
+- Be insightful but concise, avoiding overly verbose descriptions
+- Do not prefix the message with conventional commit types
 
 **Examples:**
 ```
-feat(analysis): add new boss analysis for Sikran
-fix(api): handle rate limiting edge case
-docs(readme): update installation instructions
-test(plotting): add tests for percentage plots
+Add comprehensive CLAUDE.md development guide
+
+Include development commands, architecture overview, code style
+guidelines, and commit message format for future Claude Code
+instances working with this codebase.
+```
+
+```
+Fix failing tests and improve mock object handling
+
+Add proper exception handling for Mock objects in base analysis
+class and update test mocks to match actual implementation.
 ```
 
 ### Branch Naming
@@ -304,5 +342,4 @@ Contributors will be recognized in:
 - Release notes
 - Contributor list
 
-Thank you for contributing to WoW Guild Analysis!
-
+Thank you for contributing to Guild Log Analysis!

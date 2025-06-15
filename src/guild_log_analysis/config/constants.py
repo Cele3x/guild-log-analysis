@@ -4,6 +4,7 @@ Constants module for Guild Log Analysis.
 This module contains only essential constants that are used repeatedly
 across the codebase to avoid magic strings and improve maintainability.
 """
+
 from typing import Final
 
 # API Configuration
@@ -28,34 +29,40 @@ DEFAULT_DPI = 300
 
 # Font Configuration
 FONT_FAMILIES = [
-    'Montserrat',       # Elegant, great for headings
-    'Source Sans Pro',  # Adobe's open source font
-    'Inter',            # Modern, highly readable
-    'Lato',             # Humanist sans-serif
-    'Roboto',
-    'Open Sans',
-    'Fira Sans',       # Mozilla's font
-    'DejaVu Sans',     # Linux default
-    'sans-serif'       # Fallback
+    "Montserrat",  # Elegant, great for headings
+    "Source Sans Pro",  # Adobe's open source font
+    "Inter",  # Modern, highly readable
+    "Lato",  # Humanist sans-serif
+    "Roboto",
+    "Open Sans",
+    "Fira Sans",  # Mozilla's font
+    "DejaVu Sans",  # Linux default
+    "sans-serif",  # Fallback
 ]
 
 # Specific font families for different plot elements
-TITLE_FONT = ['Montserrat', 'DejaVu Sans', 'sans-serif']
-HEADER_FONT = ['Source Sans Pro', 'DejaVu Sans', 'sans-serif']
-NAME_FONT = ['Source Sans Pro', 'DejaVu Sans', 'sans-serif']
-DEFAULT_FONT = ['DejaVu Sans Mono', 'Inter', 'DejaVu Sans', 'sans-serif']
+TITLE_FONT = ["Montserrat", "DejaVu Sans", "sans-serif"]
+HEADER_FONT = ["Source Sans Pro", "DejaVu Sans", "sans-serif"]
+NAME_FONT = ["Source Sans Pro", "DejaVu Sans", "sans-serif"]
+DEFAULT_FONT = ["DejaVu Sans Mono", "Inter", "DejaVu Sans", "sans-serif"]
+
 
 # Error Messages (only for repeated error scenarios)
 class ErrorMessages:
     """Error message templates for common scenarios."""
-    
+
     NO_ACCESS_TOKEN: Final[str] = "No access token provided"
     AUTH_FAILED: Final[str] = "Authentication failed"
-    CACHE_CORRUPTED: Final[str] = "Cache file {cache_file} is corrupted and will be ignored"
+    CACHE_CORRUPTED: Final[
+        str
+    ] = "Cache file {cache_file} is corrupted and will be ignored"
     API_REQUEST_FAILED: Final[str] = "API request failed: {error}"
     INVALID_REPORT_CODE: Final[str] = "Invalid report code: {report_code}"
-    NO_FIGHTS_FOUND: Final[str] = "No fights found for encounter {encounter_id} in report {report_code}"
+    NO_FIGHTS_FOUND: Final[
+        str
+    ] = "No fights found for encounter {encounter_id} in report {report_code}"
     NO_PLAYERS_FOUND: Final[str] = "No players found for report {report_code}"
+
 
 class ClassColors:
     """WoW class colors."""
@@ -74,6 +81,7 @@ class ClassColors:
     MONK: Final[str] = "#00FF96"
     EVOKER: Final[str] = "#33937F"
 
+
 # Plot Colors
 class PlotColors:
     """Essential color definitions for plots."""
@@ -90,4 +98,3 @@ class PlotColors:
     POSITIVE_CHANGE_COLOR: Final[str] = "#00FF00"
     NEGATIVE_CHANGE_COLOR: Final[str] = "#FF0000"
     NEUTRAL_CHANGE_COLOR: Final[str] = "#CCCCCC"
-
