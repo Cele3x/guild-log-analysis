@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2024-01-01
+## [2.0.0] - 2025-06-15
+
+### Added
+- **Registry-based Analysis System**: Decorator-based boss registration system
+- **Configuration-driven Architecture**: Boss analyses now use ANALYSIS_CONFIG and PLOT_CONFIG arrays
+- **Auto-registration**: GuildLogAnalyzer automatically generates methods for registered bosses
+- **Enhanced Test Suite**: Comprehensive tests for registry and configuration systems
+- **Improved Documentation**: Updated README, CONTRIBUTING, and component-specific docs
+- **Virtual Environment Setup**: Configured development environment with convenience aliases
+- **Version Management Guidelines**: Comprehensive changelog and semantic versioning documentation
+
+### Changed
+- **BREAKING**: Converted OneArmedBanditAnalysis to configuration-based implementation
+- **Architecture**: Reduced boilerplate code by 90% for new boss implementations
+- **Code Generation**: Dynamic method creation at runtime for registered bosses
+- **Base Class**: Enhanced BossAnalysisBase with generic analysis execution methods
+- **Type Hints**: Migrated from `Dict`, `List`, `Set`, `Tuple` to modern `dict`, `list`, `set`, `tuple`
+- **Development Workflow**: Added virtual environment aliases and convenience scripts
+
+### Fixed
+- IDE warnings for unresolved setuptools references
+- Type checking issues with modern Python 3.13 type hints
+- Virtual environment dependency management
+
+### Features
+- **Minimal Boilerplate**: New boss analyses require only configuration, not hundreds of lines
+- **Automatic Discovery**: Boss analyses automatically registered via @register_boss decorator
+- **Configuration-based**: Define analyses through structured configuration arrays
+- **Runtime Generation**: analyze_<boss>() and generate_<boss>_plots() methods created automatically
+- **Backward Compatible**: Legacy analysis methods continue to work
+- **Modern Type System**: Built-in type hints for Python 3.9+ compatibility
+
+### Technical Details
+- Registry system with decorator pattern implementation
+- Generic analysis execution framework
+- Configuration-driven plot generation
+- Enhanced type safety with comprehensive test coverage
+- Factory pattern for analysis creation
+- Virtual environment at `/home/jonathan/.virtualenvs/guild-log-analysis`
+- Modern Python type annotations throughout codebase
+- Comprehensive CHANGELOG.md update guidelines
+
+## [1.0.0] - 2025-06-13
 
 ### Added
 - Initial release of WoW Guild Analysis
@@ -31,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Developer Friendly**: Modern tooling and clear documentation
 
 ### Technical Details
-- Python 3.11+ support
+- Python 3.13 support
 - Pandas for data manipulation
 - Matplotlib for plotting
 - Requests for HTTP client

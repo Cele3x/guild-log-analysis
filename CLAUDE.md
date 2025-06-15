@@ -5,13 +5,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Installation
+
+#### Virtual Environment Setup (Recommended)
 ```bash
-# Recommended: Install package in development mode with all dependencies
+# Use the project's virtual environment
+source /home/jonathan/.virtualenvs/guild-log-analysis/bin/activate
+
+# Install project in development mode
 pip install -e .
 
-# Alternative: Install from requirements files
+# Install development dependencies
+pip install -r requirements/dev.txt
+pip install -r requirements/test.txt
+
+# Use convenience aliases (source the aliases file)
+source .venv_aliases
+```
+
+#### Alternative Installation
+```bash
+# Install package in development mode with all dependencies
+pip install -e .
+
+# Install from requirements files
 pip install -r requirements/dev.txt  # Development tools
 pip install -r requirements/test.txt  # Testing framework
+```
+
+### Virtual Environment Aliases
+
+When using the project's virtual environment, you can source the convenience aliases:
+```bash
+source .venv_aliases
+
+# Available commands:
+venv-test tests/           # Run tests with virtual environment
+venv-mypy src/            # Type checking with virtual environment
+venv-flake8 src/          # Code linting with virtual environment
+venv-black src/           # Code formatting with virtual environment
+venv-isort src/           # Import sorting with virtual environment
+venv-install              # Install project in development mode
 ```
 
 ### Code Quality
@@ -23,7 +56,7 @@ pre-commit install
 # Run pre-commit on all files
 pre-commit run --all-files
 
-# Manual tool execution
+# Manual tool execution (use venv- prefixed commands if using virtual environment)
 black src/ tests/          # Format code
 isort src/ tests/          # Sort imports
 flake8 src/ tests/         # Lint code
@@ -143,6 +176,124 @@ This is a reST style.
 - Implement appropriate error handling
 - Consider performance implications
 - Prefer constants over repeating strings
+
+## Version Management and Changelog
+
+### CHANGELOG.md Updates
+
+**CRITICAL**: Always check if CHANGELOG.md needs updates when making changes to the codebase.
+
+#### When to Update CHANGELOG.md
+
+1. **Code Changes**: Any modification to source code in `src/`
+2. **New Features**: Added functionality or capabilities
+3. **Bug Fixes**: Corrections to existing functionality
+4. **Breaking Changes**: Modifications that affect existing APIs or behavior
+5. **Documentation Updates**: Significant changes to README, CONTRIBUTING, or architecture docs
+6. **Dependency Changes**: Updates to requirements or build configuration
+7. **Configuration Changes**: Modifications to settings, environment variables, or deployment
+
+#### Version Type Determination (Semantic Versioning)
+
+Follow [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH):
+
+**MAJOR (X.0.0)** - Breaking changes:
+- API changes that break existing functionality
+- Removal of deprecated features
+- Architectural changes requiring user intervention
+- Changes to public interfaces or method signatures
+
+**MINOR (0.X.0)** - New features (backward compatible):
+- New boss analysis implementations
+- New API endpoints or methods
+- Additional configuration options
+- New CLI commands or arguments
+- Enhanced functionality that doesn't break existing code
+
+**PATCH (0.0.X)** - Bug fixes and minor improvements:
+- Bug fixes that don't change functionality
+- Performance improvements
+- Documentation corrections
+- Dependency updates (security patches)
+- Code refactoring without behavior changes
+
+#### Changelog Update Process
+
+1. **Check Git Status**: Determine if changes warrant a changelog entry
+2. **Assess Impact**: Determine if changes are MAJOR, MINOR, or PATCH level
+3. **Check Current Version**: Look at the latest version in CHANGELOG.md
+4. **Check Git Tags**: Run `git tag -l` to see if current version has been released
+5. **Determine Action**:
+   - If version hasn't been released (no git tag exists): Add to existing version section
+   - If version has been released (git tag exists): Create new version section
+6. **Update pyproject.toml**: Increment version number to match changelog
+7. **Categorize Changes**: Use appropriate sections (Added, Changed, Deprecated, Removed, Fixed, Security)
+
+#### Git Release Status Commands
+
+```bash
+# Check existing git tags
+git tag -l
+
+# Check if specific version is tagged
+git tag -l "v2.0.0"
+
+# Check current branch status
+git status
+
+# Check recent commits since last tag
+git log --oneline $(git describe --tags --abbrev=0)..HEAD
+```
+
+#### Example Changelog Entry Structure
+
+```markdown
+## [X.Y.Z] - YYYY-MM-DD
+
+### Added
+- New feature descriptions
+- New functionality additions
+
+### Changed
+- Modifications to existing features
+- **BREAKING**: Mark breaking changes clearly
+
+### Fixed
+- Bug fixes and corrections
+
+### Technical Details
+- Implementation specifics
+- Architectural improvements
+```
+
+#### Version Update Checklist
+
+- [ ] Determine version type (MAJOR/MINOR/PATCH)
+- [ ] Check if current version is already released (git tags)
+- [ ] Update CHANGELOG.md with appropriate section
+- [ ] Update version in pyproject.toml
+- [ ] Ensure all changes are documented
+- [ ] Verify changelog follows Keep a Changelog format
+
+#### Practical Application
+
+**Before making any code changes:**
+1. Check `git tag -l` to see what versions are released
+2. Look at current version in CHANGELOG.md
+3. Assess whether your planned changes warrant a new version
+
+**After making changes:**
+1. Determine change impact (MAJOR/MINOR/PATCH)
+2. Update CHANGELOG.md under current version if unreleased, or create new version section
+3. Update pyproject.toml version if creating new version
+4. Document all changes with clear descriptions
+5. Categorize properly (Added/Changed/Fixed/etc.)
+
+**Example Decision Tree:**
+- Breaking API change → MAJOR version → New section in CHANGELOG.md
+- New feature addition → MINOR version → New section in CHANGELOG.md
+- Bug fix or improvement → PATCH version → New section in CHANGELOG.md
+- Documentation only → No version change → Add to current unreleased version
 
 ## Commit Message Format
 

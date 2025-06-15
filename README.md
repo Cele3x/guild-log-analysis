@@ -9,11 +9,13 @@ Email: jonathan.sasse@outlook.de
 
 ## Features
 
-- **Boss Analysis Framework**: Extensible system for analyzing different raid bosses
+- **Registry-Based Boss Analysis**: Extensible decorator-based system for analyzing different raid bosses
+- **Automatic Method Generation**: Boss analyses are automatically registered and methods are generated at runtime
+- **Configuration-Driven Analysis**: Define analyses through simple configuration arrays instead of repetitive code
 - **One-Armed Bandit Analysis**: Complete analysis for Liberation of Undermine encounters
 - **Professional Plotting**: High-quality visualizations with consistent styling
 - **API Integration**: Seamless integration with Warcraft Logs GraphQL API
-- **Caching System**: Intelligent caching to minimize API calls
+- **Intelligent Caching**: Smart caching system to minimize API calls with automatic rotation
 - **Type Safety**: Full type annotations throughout the codebase
 
 ## Requirements
@@ -80,51 +82,93 @@ pip install -e .
 ```python
 from guild_log_analysis.main import GuildLogAnalyzer
 
-# Initialize analyzer
+# Initialize analyzer (automatically registers all boss analyses)
 analyzer = GuildLogAnalyzer()
 
-# Analyze One-Armed Bandit encounters
+# Analyze One-Armed Bandit encounters (method auto-generated)
 analyzer.analyze_one_armed_bandit(["report_code1", "report_code2"])
 
-# Generate plots
+# Generate plots (method auto-generated)
 analyzer.generate_one_armed_bandit_plots()
+
+# All registered boss analyses have auto-generated methods:
+# analyzer.analyze_<boss_name>(report_codes)
+# analyzer.generate_<boss_name>_plots()
 ```
 
 ### Adding New Boss Analyses
 
-To add a new boss analysis, simply create a new file in `src/guild_log_analysis/analysis/bosses/`:
+The registry-based system makes adding new boss analyses extremely simple. Just create a configuration file:
 
 ```python
 # src/guild_log_analysis/analysis/bosses/new_boss.py
-from guild_log_analysis.analysis.base import BossAnalysisBase
+from typing import Any
+from ..base import BossAnalysisBase
+from ..registry import register_boss
 
+@register_boss("new_boss")  # Automatically creates analyzer.analyze_new_boss() method
 class NewBossAnalysis(BossAnalysisBase):
     """Analysis for New Boss encounters."""
 
-    def __init__(self, api_client: WarcraftLogsAPIClient) -> None:
+    def __init__(self, api_client: Any) -> None:
         super().__init__(api_client)
         self.boss_name = "New Boss"
         self.encounter_id = 1234  # Your encounter ID
         self.difficulty = 5  # Mythic
 
-    def analyze(self, report_codes: list[str]) -> None:
-        """Implement your analysis logic here."""
-        # Your custom analysis implementation
-        pass
+    # Define what analyses to run (no code needed!)
+    ANALYSIS_CONFIG = [
+        {
+            "name": "Boss Interrupts",
+            "type": "interrupts",
+            "ability_id": 12345,  # Replace with actual ability ID
+        },
+        {
+            "name": "Debuff Uptime",
+            "type": "debuff_uptime",
+            "ability_id": 67890.0,  # Replace with actual debuff ID
+        },
+        {
+            "name": "Add Damage",
+            "type": "damage_to_actor",
+            "target_game_id": 11111,  # Replace with actual game ID
+            "result_key": "damage_to_adds",
+        }
+    ]
+
+    # Define how to visualize the data (no code needed!)
+    PLOT_CONFIG = [
+        {
+            "analysis_name": "Boss Interrupts",
+            "plot_type": "NumberPlot",
+            "title": "Boss Interrupts",
+            "value_column": "interrupts",
+            "value_column_name": "Interrupts",
+        },
+        {
+            "analysis_name": "Debuff Uptime",
+            "plot_type": "PercentagePlot",
+            "title": "Debuff Uptime",
+            "value_column": "uptime_percentage",
+            "value_column_name": "Uptime %",
+        },
+        {
+            "analysis_name": "Add Damage",
+            "plot_type": "NumberPlot",
+            "title": "Damage to Adds",
+            "value_column": "damage_to_adds",
+            "value_column_name": "Damage",
+        }
+    ]
 ```
 
-Then add a simple method to the main analyzer:
+**That's it!** The system automatically:
+- Registers the boss analysis class
+- Creates `analyzer.analyze_new_boss()` method
+- Creates `analyzer.generate_new_boss_plots()` method
+- Handles all analysis execution and plot generation
 
-```python
-# In main.py
-def analyze_new_boss(self, report_codes: list[str]) -> None:
-    """Analyze New Boss encounters."""
-    from guild_log_analysis.analysis.bosses.new_boss import NewBossAnalysis
-
-    analysis = NewBossAnalysis(self.api_client)
-    analysis.analyze(report_codes)
-    self.analyses['new_boss'] = analysis
-```
+**No changes needed to `main.py` or any other files!**
 
 ## Project Structure
 
@@ -132,25 +176,30 @@ def analyze_new_boss(self, report_codes: list[str]) -> None:
 guild-log-analysis/
 ├── src/guild_log_analysis/
 │   ├── analysis/
-│   │   ├── base.py              # Base analysis class
+│   │   ├── base.py              # Base analysis class with generic execution
+│   │   ├── registry.py          # Boss registration decorator system
 │   │   └── bosses/
-│   │       └── one_armed_bandit.py  # One-Armed Bandit analysis
+│   │       ├── one_armed_bandit.py  # One-Armed Bandit analysis
+│   │       └── example_boss.py      # Example boss template
 │   ├── api/
 │   │   ├── auth.py              # Authentication handling
-│   │   ├── client.py            # API client
+│   │   ├── client.py            # API client with caching
 │   │   └── exceptions.py        # Custom exceptions
 │   ├── config/
 │   │   ├── constants.py         # Application constants
-│   │   └── settings.py          # Configuration settings
+│   │   ├── settings.py          # Configuration settings
+│   │   └── logging_config.py    # Logging configuration
 │   ├── plotting/
 │   │   ├── base.py              # Plotting utilities
 │   │   └── styles.py            # Plot styling
 │   ├── utils/
 │   │   ├── cache.py             # Caching utilities
 │   │   └── helpers.py           # Helper functions
-│   └── main.py                  # Main application
+│   └── main.py                  # Main application with auto-registration
 ├── tests/                       # Test suite
 ├── requirements/                # Requirement files
+├── logs/                        # Application logs
+├── plots/                       # Generated plot images
 └── README.md                    # This file
 ```
 

@@ -224,14 +224,46 @@ def test_get_fight_ids_success(self, mock_api_client, sample_api_response):
 
 ### Adding New Boss Analysis
 
-1. Create new file in `src/guild_log_analysis/analysis/bosses/new_boss.py`
-2. Inherit from `BossAnalysisBase` abstract class
-3. Set `boss_name`, `encounter_id`, and `difficulty` attributes
-4. Implement `analyze(report_codes)` method
-5. Add corresponding method to `GuildLogAnalyzer` class
-6. Add constants to `config/constants.py`
-7. Create comprehensive tests in `tests/unit/test_analysis/`
-8. Update documentation and examples
+The registry-based system makes adding new boss analyses extremely simple:
+
+1. **Create new file** in `src/guild_log_analysis/analysis/bosses/new_boss.py`
+2. **Use `@register_boss()` decorator** - automatically registers the class
+3. **Inherit from `BossAnalysisBase`** and set boss attributes
+4. **Define `ANALYSIS_CONFIG`** - specify what analyses to run
+5. **Define `PLOT_CONFIG`** - specify how to visualize the data
+6. **Add constants** to `config/constants.py` if needed
+7. **Create comprehensive tests** in `tests/unit/test_analysis/`
+8. **Update documentation** and examples
+
+**No manual changes needed to `GuildLogAnalyzer` class!** Methods are auto-generated:
+- `analyzer.analyze_<boss_name>()`
+- `analyzer.generate_<boss_name>_plots()`
+
+#### Example Implementation
+
+```python
+from typing import Any
+from ..base import BossAnalysisBase
+from ..registry import register_boss
+
+@register_boss("new_boss")  # Automatic registration
+class NewBossAnalysis(BossAnalysisBase):
+    def __init__(self, api_client: Any) -> None:
+        super().__init__(api_client)
+        self.boss_name = "New Boss"
+        self.encounter_id = 1234
+        self.difficulty = 5
+
+    # Configuration-driven analysis (no methods needed!)
+    ANALYSIS_CONFIG = [
+        {"name": "Interrupts", "type": "interrupts", "ability_id": 12345},
+        {"name": "Damage", "type": "damage_to_actor", "target_game_id": 67890, "result_key": "damage_to_adds"}
+    ]
+
+    PLOT_CONFIG = [
+        {"analysis_name": "Interrupts", "plot_type": "NumberPlot", "title": "Interrupts", "value_column": "interrupts", "value_column_name": "Count"}
+    ]
+```
 
 ### File Organization
 
@@ -243,13 +275,16 @@ src/guild_log_analysis/
 │   ├── auth.py      # OAuth authentication
 │   └── exceptions.py # Custom API exceptions
 ├── analysis/        # Analysis modules
-│   ├── base.py      # BossAnalysisBase abstract class
-│   └── bosses/      # Boss-specific implementations
+│   ├── base.py      # BossAnalysisBase with generic execution
+│   ├── registry.py  # Boss registration decorator system
+│   └── bosses/      # Boss-specific configuration files
+│       ├── one_armed_bandit.py  # Configuration-based analysis
+│       └── example_boss.py      # Example template
 ├── plotting/        # Visualization modules
 │   ├── base.py      # BaseTablePlot abstract class
 │   └── styles.py    # Plot styling and colors
 ├── utils/           # Utility functions
-└── main.py          # GuildLogAnalyzer main interface
+└── main.py          # GuildLogAnalyzer with auto-registration
 ```
 
 ## Documentation
