@@ -169,7 +169,6 @@ def main() -> None:
 
     # Example report codes (replace with actual ones)
     report_codes = [
-        # "yC1KYmQpv9MbNw4T",  # 05.06.
         "GzqYMJW3hFHXVdxT",  # 12.06.
         "BTYHxq1QC6wdVjrv",  # 15.06.
     ]
