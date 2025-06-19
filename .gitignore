@@ -170,6 +170,7 @@ cython_debug/
 
 # Project-specific files
 cache/*.json
+cache/*.json.*
 tests/**/*.json
 logs/*.logs
 plots/*.png

@@ -49,7 +49,7 @@ class CacheManager:
             return
 
         # Check if current file needs rotation
-        if self._get_cache_file_size() < 10 * 1024 * 1024:  # 10MB max cache size
+        if self._get_cache_file_size() < 200 * 1024 * 1024:  # 200MB max cache size
             return
 
         logger.info("Rotating cache files due to size limit")
