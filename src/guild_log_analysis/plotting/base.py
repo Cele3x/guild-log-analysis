@@ -42,6 +42,7 @@ class BaseTablePlot(ABC):
         class_column: Optional[str] = "class",
         current_fight_count: Optional[int] = None,
         previous_fight_count: Optional[int] = None,
+        show_totals: bool = True,
     ) -> None:
         """
         Initialize the plot.
@@ -56,6 +57,7 @@ class BaseTablePlot(ABC):
         :param class_column: Name of the column containing class information
         :param current_fight_count: Current fight count
         :param previous_fight_count: Previous fight count
+        :param show_totals: Whether to show totals row at bottom
         """
         self.title = title
         self.date = date
@@ -67,6 +69,7 @@ class BaseTablePlot(ABC):
         self.class_column = class_column
         self.current_fight_count = current_fight_count
         self.previous_fight_count = previous_fight_count
+        self.show_totals = show_totals
 
         self._setup_plot_style()
         self._prepare_data()
@@ -82,6 +85,32 @@ class BaseTablePlot(ABC):
 
         # Add previous values column
         self.df["previous_value"] = self.df[self.name_column].map(self.previous_data)
+
+        # Calculate totals if needed
+        if self.show_totals:
+            self._calculate_totals()
+
+    def _calculate_totals(self) -> None:
+        """Calculate totals for the current and previous data."""
+        # For percentage plots, calculate average instead of sum
+        if isinstance(self, PercentagePlot):
+            # Calculate current average
+            self.current_total = self.df[self.value_column].mean()
+
+            # Calculate previous average from previous_data
+            previous_values = [self.previous_data.get(name, 0) for name in self.df[self.name_column]]
+            # Filter out None/NaN values
+            valid_previous = [val for val in previous_values if pd.notna(val)]
+            self.previous_total = sum(valid_previous) / len(valid_previous) if valid_previous else None
+        else:
+            # For number plots, calculate sum
+            self.current_total = self.df[self.value_column].sum()
+
+            # Calculate previous total from previous_data
+            previous_values = [self.previous_data.get(name, 0) for name in self.df[self.name_column]]
+            # Filter out None/NaN values
+            valid_previous = [val for val in previous_values if pd.notna(val)]
+            self.previous_total = sum(valid_previous) if valid_previous else None
 
     @abstractmethod
     def _get_value_display(self, value: Any) -> str:
@@ -117,7 +146,12 @@ class BaseTablePlot(ABC):
             return "", PlotColors.TEXT_SECONDARY
 
         try:
-            if isinstance(current, (int, float)) and isinstance(previous, (int, float)):
+            # Check for numeric types including numpy types
+            import numpy as np
+
+            if isinstance(current, (int, float, np.integer, np.floating)) and isinstance(
+                previous, (int, float, np.integer, np.floating)
+            ):
                 # For percentage plots, keep the absolute change
                 if isinstance(self, PercentagePlot):
                     change = current - previous
@@ -129,7 +163,7 @@ class BaseTablePlot(ABC):
                         current_avg = current / self.current_fight_count
                         previous_avg = previous / self.previous_fight_count
                         # Calculate relative change
-                        change = current_avg - previous_avg
+                        change = float(current_avg - previous_avg)
                         formatted_change = format_number(change, 0) if abs(change) > 100 else format_number(change)
                         # Add "+" prefix if positive and doesn't already have a sign
                         if change > 0 and not formatted_change.startswith(("+", "-")):
@@ -141,11 +175,29 @@ class BaseTablePlot(ABC):
                             PlotStyleManager.get_change_color(change),
                         )
                     else:
-                        change = int(current - previous)  # Keep integers for interrupt counts
+                        # Simple difference calculation for totals without fight counts
+                        change = float(current - previous)
+                        # Format the change appropriately
+                        if abs(change) >= 1000:
+                            formatted_change = format_number(change, 0)
+                        elif abs(change) >= 100:
+                            formatted_change = format_number(change, 1)
+                        else:
+                            formatted_change = format_number(change, 2)
+
+                        # Add "+" prefix if positive and doesn't already have a sign
+                        if change > 0 and not formatted_change.startswith(("+", "-")):
+                            formatted_change = f"+ {formatted_change}"
+                        elif change < 0 and formatted_change.startswith("-"):
+                            formatted_change = formatted_change.replace("-", "- ", 1)
+                        return (
+                            formatted_change,
+                            PlotStyleManager.get_change_color(change),
+                        )
 
                 return (
                     (f"+ {change}" if change > 0 else f"- {abs(change)}" if change < 0 else str(change)),
-                    PlotStyleManager.get_change_color(change),
+                    PlotStyleManager.get_change_color(float(change)),
                 )
             else:
                 return "N/A", PlotColors.TEXT_SECONDARY
@@ -161,9 +213,11 @@ class BaseTablePlot(ABC):
         :returns: Matplotlib figure object
         """
         if figsize is None:
+            # Calculate height based on number of rows plus totals row if needed
+            total_rows = len(self.df) + (1 if self.show_totals else 0)
             figsize = (
                 20,  # Default figure width
-                len(self.df) * 0.7,  # Row height multiplier
+                int(total_rows * 0.7),  # Row height multiplier
             )
 
         fig, ax = plt.subplots(figsize=figsize)
@@ -190,10 +244,11 @@ class BaseTablePlot(ABC):
         current_x = 0.2
         for col in columns:
             col_positions.append(current_x)
-            current_x += col["width"]
+            # Type ignore for dynamic dict access
+            current_x += col["width"]  # type: ignore[operator]
 
-        # Draw title and date
-        title_y = len(self.df) + 1.3
+        # Draw title and date - position closer to header
+        title_y = float(len(self.df)) + 1.15
         ax.text(
             table_width / 2,
             title_y,
@@ -206,7 +261,7 @@ class BaseTablePlot(ABC):
         )
         ax.text(
             table_width / 2,
-            title_y - 0.5,
+            title_y - 0.4,
             self.date,
             fontsize=18,
             style="italic",
@@ -215,7 +270,7 @@ class BaseTablePlot(ABC):
             fontfamily=TITLE_FONT,
         )
 
-        # Draw header
+        # Draw header (use only data rows for positioning)
         self._draw_header(
             ax,
             columns,
@@ -228,14 +283,22 @@ class BaseTablePlot(ABC):
         # Draw data rows
         self._draw_data_rows(ax, columns, col_positions, row_height, table_width, max_value)
 
+        # Draw totals row if enabled
+        if self.show_totals:
+            self._draw_totals_row(ax, columns, col_positions, row_height)
+
         # Set axis limits - tighten vertical spacing
         ax.set_xlim(-0.2, table_width + 0.2)
 
-        # Calculate where your bottom row actually is
-        bottom_row_y = len(self.df) - (len(self.df) - 1) * row_height - row_height / 2
-        # Add small margin
-        bottom_margin = bottom_row_y - row_height
-        ax.set_ylim(bottom_margin, len(self.df) + 1.8)
+        # Calculate actual totals row position to set proper limits
+        if self.show_totals:
+            last_data_row_y = len(self.df) - (len(self.df) - 1) * row_height - row_height / 2
+            totals_y_pos = last_data_row_y - row_height
+            bottom_limit = totals_y_pos - row_height / 2  # Give some margin below totals
+        else:
+            bottom_limit = len(self.df) - len(self.df) * row_height
+
+        ax.set_ylim(bottom_limit, len(self.df) + 1.5)
 
         return fig
 
@@ -330,7 +393,7 @@ class BaseTablePlot(ABC):
                 va="center",
             )
 
-            # Value bar (now in third column)
+            # Value bar
             self._draw_value_bar(
                 ax,
                 col_positions[2],
@@ -340,7 +403,7 @@ class BaseTablePlot(ABC):
                 class_color,
             )
 
-            # Change indicator (now in fourth column)
+            # Change indicator
             prev_value = row["previous_value"]
             change_text, change_color = self._calculate_change(current_value, prev_value)
 
@@ -350,6 +413,69 @@ class BaseTablePlot(ABC):
                 change_text,
                 fontsize=18,
                 fontweight="normal",
+                color=change_color,
+                ha="left",
+                va="center",
+            )
+
+    def _draw_totals_row(
+        self,
+        ax: plt.Axes,
+        columns: list[dict],
+        col_positions: list[float],
+        row_height: float,
+    ) -> None:
+        """Draw the totals row at the bottom of the table."""
+        last_data_row_y = len(self.df) - (len(self.df) - 1) * row_height - row_height / 2
+        totals_y_pos = last_data_row_y - row_height
+
+        # Separator line above totals
+        separator_y = totals_y_pos + row_height / 2
+        ax.axhline(
+            y=separator_y,
+            xmin=0.02,
+            xmax=0.98,
+            color=PlotColors.BORDER,
+            linewidth=2,
+            alpha=1.0,
+        )
+
+        # Totals label
+        label_text = "Average" if isinstance(self, PercentagePlot) else "Total"
+        ax.text(
+            col_positions[0] + 0.1,
+            totals_y_pos,
+            label_text,
+            fontsize=18,
+            fontweight="bold",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="left",
+            va="center",
+            fontfamily=HEADER_FONT,
+        )
+
+        # Totals value
+        total_display = self._get_value_display(self.current_total)
+        ax.text(
+            col_positions[1] + columns[1]["width"] - 0.1,
+            totals_y_pos,
+            total_display,
+            fontsize=18,
+            fontweight="bold",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="right",
+            va="center",
+        )
+
+        # Change indicator
+        if self.previous_total is not None:
+            change_text, change_color = self._calculate_change(self.current_total, self.previous_total)
+            ax.text(
+                col_positions[3] + 0.1,
+                totals_y_pos,
+                change_text,
+                fontsize=18,
+                fontweight="bold",
                 color=change_color,
                 ha="left",
                 va="center",
@@ -470,8 +596,8 @@ class NumberPlot(BaseTablePlot):
     def _get_bar_width_ratio(self, value: Any, max_value: Any) -> float:
         """Calculate bar width ratio for number count."""
         if max_value == 0:
-            return 0
-        return value / max_value
+            return 0.0
+        return float(value) / float(max_value)
 
 
 class PercentagePlot(BaseTablePlot):
@@ -484,5 +610,5 @@ class PercentagePlot(BaseTablePlot):
     def _get_bar_width_ratio(self, value: Any, max_value: Any) -> float:
         """Calculate bar width ratio for percentage."""
         if max_value == 0:
-            return 0
-        return value / max_value
+            return 0.0
+        return float(value) / float(max_value)

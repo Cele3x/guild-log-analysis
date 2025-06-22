@@ -304,3 +304,200 @@ class TestPercentagePlot:
 
         ratio = plot._get_bar_width_ratio(25.0, 0.0)
         assert ratio == 0
+
+
+class TestTotalsRowFunctionality:
+    """Test cases for totals row functionality."""
+
+    def test_init_with_show_totals_true(self):
+        """Test initialization with show_totals=True."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+        plot = NumberPlot("Test", "2023-01-01", df, show_totals=True)
+
+        assert plot.show_totals is True
+        assert hasattr(plot, "current_total")
+        assert hasattr(plot, "previous_total")
+
+    def test_init_with_show_totals_false(self):
+        """Test initialization with show_totals=False."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+        plot = NumberPlot("Test", "2023-01-01", df, show_totals=False)
+
+        assert plot.show_totals is False
+        # Should not have totals attributes when disabled
+        assert not hasattr(plot, "current_total")
+        assert not hasattr(plot, "previous_total")
+
+    def test_init_show_totals_default(self):
+        """Test that show_totals defaults to True."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+        plot = NumberPlot("Test", "2023-01-01", df)
+
+        assert plot.show_totals is True
+
+    def test_calculate_totals_number_plot(self):
+        """Test totals calculation for NumberPlot (sum)."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2", "Player3"], "value": [100, 200, 300]})
+        previous_data = {"Player1": 80, "Player2": 150, "Player3": 250}
+
+        plot = NumberPlot("Test", "2023-01-01", df, previous_data=previous_data, show_totals=True)
+
+        # Current total should be sum
+        assert plot.current_total == 600
+        # Previous total should be sum of previous values
+        assert plot.previous_total == 480
+
+    def test_calculate_totals_percentage_plot(self):
+        """Test totals calculation for PercentagePlot (average)."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2", "Player3"], "value": [70.0, 80.0, 90.0]})
+        previous_data = {"Player1": 60.0, "Player2": 70.0, "Player3": 80.0}
+
+        plot = PercentagePlot("Test", "2023-01-01", df, previous_data=previous_data, show_totals=True)
+
+        # Current total should be average
+        assert plot.current_total == 80.0
+        # Previous total should be average of previous values
+        assert plot.previous_total == 70.0
+
+    def test_calculate_totals_missing_previous_data(self):
+        """Test totals calculation with missing previous data."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+        previous_data = {"Player1": 80}  # Missing Player2
+
+        plot = NumberPlot("Test", "2023-01-01", df, previous_data=previous_data, show_totals=True)
+
+        assert plot.current_total == 300
+        assert plot.previous_total == 80  # Only Player1's previous value
+
+    def test_calculate_totals_no_previous_data(self):
+        """Test totals calculation with no previous data."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+
+        plot = NumberPlot("Test", "2023-01-01", df, show_totals=True)
+
+        assert plot.current_total == 300
+        # When no previous_data is provided, previous_total should be 0 for NumberPlot
+        assert plot.previous_total == 0
+
+    def test_calculate_change_for_totals_number_plot(self):
+        """Test change calculation for NumberPlot totals."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [150, 250]})
+        previous_data = {"Player1": 100, "Player2": 200}
+
+        plot = NumberPlot("Test", "2023-01-01", df, previous_data=previous_data, show_totals=True)
+
+        change_text, change_color = plot._calculate_change(plot.current_total, plot.previous_total)
+
+        assert change_text == "+ 100"
+        assert change_color == PlotColors.POSITIVE_CHANGE_COLOR
+
+    def test_calculate_change_for_totals_percentage_plot(self):
+        """Test change calculation for PercentagePlot totals."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [75.5, 82.3]})
+        previous_data = {"Player1": 70.0, "Player2": 80.0}
+
+        plot = PercentagePlot("Test", "2023-01-01", df, previous_data=previous_data, show_totals=True)
+
+        change_text, change_color = plot._calculate_change(plot.current_total, plot.previous_total)
+
+        # Average went from 75.0 to 78.9, so change should be +3.9
+        assert change_text == "+ 3.9"
+        assert change_color == PlotColors.POSITIVE_CHANGE_COLOR
+
+    def test_calculate_change_numpy_types(self):
+        """Test change calculation with numpy types (regression test)."""
+        import numpy as np
+
+        df = pd.DataFrame({"player_name": ["Player1"], "value": [100]})
+        plot = NumberPlot("Test", "2023-01-01", df, show_totals=True)
+
+        # Test with numpy types that caused the original issue
+        current = np.int64(450)
+        previous = 410
+
+        change_text, change_color = plot._calculate_change(current, previous)
+
+        assert change_text == "+ 40"
+        assert change_color == PlotColors.POSITIVE_CHANGE_COLOR
+
+    @patch("matplotlib.pyplot.subplots")
+    def test_create_plot_with_totals(self, mock_subplots):
+        """Test plot creation with totals enabled."""
+        mock_fig = Mock()
+        mock_ax = Mock()
+        mock_subplots.return_value = (mock_fig, mock_ax)
+
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+
+        plot = NumberPlot("Test", "2023-01-01", df, show_totals=True)
+
+        with patch.object(plot, "_draw_totals_row") as mock_draw_totals:
+            plot.create_plot()
+
+            # Should call _draw_totals_row when totals are enabled
+            mock_draw_totals.assert_called_once()
+
+    @patch("matplotlib.pyplot.subplots")
+    def test_create_plot_without_totals(self, mock_subplots):
+        """Test plot creation with totals disabled."""
+        mock_fig = Mock()
+        mock_ax = Mock()
+        mock_subplots.return_value = (mock_fig, mock_ax)
+
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+
+        plot = NumberPlot("Test", "2023-01-01", df, show_totals=False)
+
+        with patch.object(plot, "_draw_totals_row") as mock_draw_totals:
+            plot.create_plot()
+
+            # Should not call _draw_totals_row when totals are disabled
+            mock_draw_totals.assert_not_called()
+
+    def test_draw_totals_row_parameters(self):
+        """Test _draw_totals_row method signature and parameters."""
+        df = pd.DataFrame({"player_name": ["Player1"], "value": [100]})
+        plot = NumberPlot("Test", "2023-01-01", df, show_totals=True)
+
+        # Mock the required parameters - need all 4 columns like the real plot
+        mock_ax = Mock()
+        columns = [
+            {"name": "Name", "width": 2.0},
+            {"name": "", "width": 1.5},
+            {"name": "Value", "width": 6.5},
+            {"name": "Change", "width": 2.0},
+        ]
+        col_positions = [0.2, 2.2, 3.7, 10.2]
+        row_height = 0.6
+
+        # Should not raise an error with correct parameters
+        try:
+            plot._draw_totals_row(mock_ax, columns, col_positions, row_height)
+        except TypeError as e:
+            # If there's a TypeError, it means wrong number of parameters
+            assert False, f"Wrong number of parameters: {e}"
+
+    def test_figure_height_with_totals(self):
+        """Test that figure height accounts for totals row."""
+        df = pd.DataFrame({"player_name": ["Player1", "Player2"], "value": [100, 200]})
+
+        # Create plots with and without totals
+        plot_with_totals = NumberPlot("Test", "2023-01-01", df, show_totals=True)
+        plot_without_totals = NumberPlot("Test", "2023-01-01", df, show_totals=False)
+
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
+            mock_fig = Mock()
+            mock_ax = Mock()
+            mock_subplots.return_value = (mock_fig, mock_ax)
+
+            # Create both plots and capture figsize arguments
+            plot_with_totals.create_plot()
+            figsize_with_totals = mock_subplots.call_args[1]["figsize"]
+
+            mock_subplots.reset_mock()
+
+            plot_without_totals.create_plot()
+            figsize_without_totals = mock_subplots.call_args[1]["figsize"]
+
+            # Height should be larger when totals are enabled
+            assert figsize_with_totals[1] > figsize_without_totals[1]
