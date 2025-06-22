@@ -14,23 +14,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Change Indicators**: Totals row displays change from previous data with color coding
 - **Comprehensive Tests**: Added 14 new tests covering all totals functionality
 - **Visual Separator**: Red line above totals row for clear visual distinction
+- **Role-based Filtering**: Added role filtering system for analyses and plots
+- **Role Constants**: Added PlayerRoles class with TANK, HEALER, DPS constants
+- **Enhanced GraphQL Queries**: Improved query structure and empty data validation
 
 ### Changed
 - **Plot Layout**: Adjusted spacing and positioning for optimal totals row integration
 - **Figure Height**: Automatically accounts for totals row in plot dimensions
 - **Type Support**: Enhanced change calculation to handle numpy numeric types
 - **Method Signatures**: Cleaned up unused parameters in totals-related methods
+- **Duration-based Calculations**: Replaced fight count dependencies with total fight duration metrics
+- **Change Calculations**: Enhanced precision for duration-based change calculations with scaled formatting
+- **Analysis Architecture**: Updated base analysis to support role filtering in configurations
+- **Plot System**: Streamlined to use exclusively duration-based metrics for more accurate comparisons
 
 ### Fixed
 - **Change Calculation**: Fixed "N/A" issue for NumberPlot totals (numpy type handling)
 - **Plot Spacing**: Eliminated gaps between header/data rows and data rows/totals
 - **Title Positioning**: Optimized spacing between title/subtitle and header row
+- **Duration Tracking**: Eliminated fight count parameters throughout plotting system
+- **Test Suite**: Updated all tests to use duration parameters instead of fight counts
 
 ### Technical Details
 - Totals row enabled by default with `show_totals=True` parameter
 - No value bar displayed in totals row for cleaner appearance
 - Proper handling of missing previous data (returns 0 for NumberPlot, None for PercentagePlot)
 - Added regression tests for numpy type compatibility
+- Role filtering applies to both analysis data collection and plot generation
+- Duration-based change calculations provide per-minute rate comparisons
+- Enhanced change formatting with 3 decimal places for small values
+- Comprehensive test coverage for role filtering functionality
 
 ## [2.0.0] - 2025-06-15
 
