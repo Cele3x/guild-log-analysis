@@ -470,7 +470,7 @@ class BossAnalysisBase(ABC):
         query GetActors($reportCode: String!) {
           reportData {
             report(code: $reportCode) {
-              masterData {
+              masterData(translate: true) {
                 actors {
                   id
                   name
@@ -509,7 +509,7 @@ class BossAnalysisBase(ABC):
 
         logger.info(f"Found {len(target_ids)} targets with game ID {target_game_id}: {target_ids}")
 
-        # Step 2: Get damage done data for each target and aggregate
+        # Step 2: Get damage done data for each target and aggregate (viewOption 8192 for unfiltered data)
         damage_query = """
         query GetDamageDone(
             $reportCode: String!, $fightIDs: [Int]!, $targetID: Int!,
@@ -526,6 +526,7 @@ class BossAnalysisBase(ABC):
                 killType: Wipes
                 wipeCutoff: $wipeCutoff
                 filterExpression: $filterExpression
+                viewOptions: 8192
               )
             }
           }
@@ -557,6 +558,10 @@ class BossAnalysisBase(ABC):
             table_data = damage_result["data"]["reportData"]["report"]["table"]
             if not table_data or "data" not in table_data:
                 logger.warning(f"No table data found for target {target_id}")
+                continue
+
+            if len(table_data["data"]["entries"]) == 0:
+                logger.warning(f"No entries found for target {target_id}")
                 continue
 
             # Process damage entries for this target

@@ -175,6 +175,7 @@ tests/**/*.json
 logs/*.logs
 plots/*.png
 tests/**/*.png
+*.http
 
 # OS-specific files
 .DS_Store
