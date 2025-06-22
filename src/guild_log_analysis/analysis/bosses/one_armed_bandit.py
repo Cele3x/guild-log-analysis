@@ -21,7 +21,7 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
         {
             "name": "Overload! Interrupts",
             "type": "interrupts",
-            "ability_id": 460582,
+            "ability_id": 460582.0,
         },
         {
             "name": "High Roller Uptime",
@@ -56,6 +56,18 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "filter_expression": "absorbedDamage > 0",
             "roles": [PlayerRoles.DPS],
         },
+        {
+            "name": "Damage Taken from Travelling Flames",
+            "type": "damage_taken_from_ability",
+            "ability_id": 1223999.0,
+            "result_key": "damage_taken_from_travelling_flames",
+        },
+        {
+            "name": "Damage Taken from Pay-Line",
+            "type": "damage_taken_from_ability",
+            "ability_id": 460424.0,
+            "result_key": "damage_taken_from_payline",
+        },
     ]
 
     # Plot configuration
@@ -73,7 +85,6 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "title": "High Roller Uptime",
             "value_column": "uptime_percentage",
             "value_column_name": "Uptime",
-            # No roles = all roles
         },
         {
             "analysis_name": "Premium Dynamite Booties Damage",
@@ -105,5 +116,21 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "value_column": "absorbed_damage_to_reel_assistants",
             "value_column_name": "Absorbierter Schaden",
             "roles": [PlayerRoles.DPS],
+        },
+        {
+            "analysis_name": "Damage Taken from Travelling Flames",
+            "plot_type": "HitCountPlot",
+            "title": "Schaden durch Travelling Flames",
+            "value_column": "hit_count",
+            "value_column_name": "Anzahl",
+            "damage_column": "damage_taken_from_travelling_flames",
+        },
+        {
+            "analysis_name": "Damage Taken from Pay-Line",
+            "plot_type": "HitCountPlot",
+            "title": "Schaden durch Coins",
+            "value_column": "hit_count",
+            "value_column_name": "Anzahl",
+            "damage_column": "damage_taken_from_payline",
         },
     ]

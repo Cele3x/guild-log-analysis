@@ -171,6 +171,19 @@ class BossAnalysisBase(ABC):
             if "result_key" in config and config["result_key"] != "damage":
                 for player_data in data:
                     player_data[config["result_key"]] = player_data.pop("damage")
+        elif analysis_type == "damage_taken_from_ability":
+            data = self.analyze_damage_taken_from_ability(
+                report_code=report_code,
+                fight_ids=fight_ids,
+                report_players=filtered_players,
+                ability_id=config["ability_id"],
+                wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
+                filter_expression=config.get("filter_expression"),
+            )
+            # Rename damage field if result_key is specified
+            if "result_key" in config and config["result_key"] != "damage_taken":
+                for player_data in data:
+                    player_data[config["result_key"]] = player_data.pop("damage_taken")
         else:
             raise ValueError(f"Unknown analysis type: {analysis_type}")
 
@@ -882,6 +895,132 @@ class BossAnalysisBase(ABC):
 
         return round(uptime_percentage, 2)
 
+    def analyze_damage_taken_from_ability(
+        self,
+        report_code: str,
+        fight_ids: set[int],
+        report_players: list[dict[str, Any]],
+        ability_id: float,
+        wipe_cutoff: Optional[int] = DEFAULT_WIPE_CUTOFF,
+        filter_expression: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Analyze damage taken from a specific ability.
+
+        :param report_code: The WarcraftLogs report code
+        :param fight_ids: Set of fight IDs to analyze
+        :param report_players: List of players who participated in the fights
+        :param ability_id: The ability ID to track damage taken from (float)
+        :param wipe_cutoff: Threshold for considering fights as wipes
+        :param filter_expression: Optional expression to filter the report data
+        :return: List of player data with damage taken amounts
+        """
+        query = """
+        query GetDamageTakenByAbility(
+            $reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!,
+            $filterExpression: String, $encounterID: Int!, $difficulty: Int!, $wipeCutoff: Int!
+        ) {
+          reportData {
+            report(code: $reportCode) {
+              table(
+                dataType: DamageTaken
+                fightIDs: $fightIDs
+                encounterID: $encounterID
+                difficulty: $difficulty
+                abilityID: $abilityID
+                killType: Wipes
+                wipeCutoff: $wipeCutoff
+                filterExpression: $filterExpression
+              )
+            }
+          }
+        }
+        """
+
+        variables = {
+            "reportCode": report_code,
+            "fightIDs": list(fight_ids),
+            "abilityID": ability_id,
+            "filterExpression": filter_expression,
+            "encounterID": self.encounter_id,
+            "difficulty": self.difficulty,
+            "wipeCutoff": wipe_cutoff,
+        }
+
+        response = self.api_client.make_request(query, variables)
+
+        if not response or "data" not in response or "reportData" not in response["data"]:
+            logger.warning(f"No damage taken data found for ability {ability_id} in report {report_code}")
+            return []
+
+        report_data = response["data"]["reportData"]["report"]
+        if not report_data:
+            logger.warning(f"No report found for code {report_code}")
+            return []
+
+        table_data = report_data["table"]
+        if not table_data or "data" not in table_data:
+            logger.warning(f"No damage taken table data for ability {ability_id} in report {report_code}")
+            return []
+
+        entries = table_data["data"]["entries"]
+        if not entries:
+            logger.info(f"No damage taken entries found for ability {ability_id} in report {report_code}")
+            # Return all players with 0 damage taken and hit count instead of empty list
+            return [
+                {
+                    "player_name": player["name"],
+                    "class": player["type"],
+                    "role": player["role"],
+                    "damage_taken": 0,
+                    "hit_count": 0,
+                }
+                for player in report_players
+            ]
+
+        # Process damage taken data
+        damage_data = {}
+        for entry in entries:
+            actor_name = entry.get("name")
+            total_damage = entry.get("total", 0)
+            hit_count = entry.get("hitCount", 0)
+
+            # Find matching player
+            matching_player = next(
+                (player for player in report_players if player["name"] == actor_name),
+                None,
+            )
+            if matching_player:
+                damage_data[actor_name] = {
+                    "damage_taken": total_damage,
+                    "hit_count": hit_count,
+                }
+            else:
+                logger.debug(f"Player {actor_name} is missing in report_players")
+
+        # Create a dictionary to store unique player data
+        unique_players = {}
+        for player in report_players:
+            player_name = player["name"]
+            player_damage = damage_data.get(player_name, {"damage_taken": 0, "hit_count": 0})
+            if player_name not in unique_players:
+                unique_players[player_name] = {
+                    "player_name": player_name,
+                    "class": player["type"],
+                    "role": player["role"],
+                    "damage_taken": player_damage["damage_taken"],
+                    "hit_count": player_damage["hit_count"],
+                }
+            else:
+                # If player exists, keep the higher values (should be the same from API)
+                if player_damage["damage_taken"] > unique_players[player_name]["damage_taken"]:
+                    unique_players[player_name]["damage_taken"] = player_damage["damage_taken"]
+                if player_damage["hit_count"] > unique_players[player_name]["hit_count"]:
+                    unique_players[player_name]["hit_count"] = player_damage["hit_count"]
+
+        # Convert dictionary to list
+        return list(unique_players.values())
+
     def generate_plots(self) -> None:
         """Generate plots using configuration."""
         if self.PLOT_CONFIG:
@@ -945,7 +1084,7 @@ class BossAnalysisBase(ABC):
         """
         import pandas as pd
 
-        from ..plotting.base import NumberPlot, PercentagePlot
+        from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot
 
         analysis_name = plot_config["analysis_name"]
         plot_type = plot_config["plot_type"]
@@ -994,6 +1133,20 @@ class BossAnalysisBase(ABC):
                 previous_data=previous_dict,
                 value_column=value_column,
                 value_column_name=value_column_name,
+                name_column=name_column,
+                class_column=class_column,
+                current_fight_duration=current_fight_duration,
+                previous_fight_duration=previous_fight_duration,
+            )
+        elif plot_type == "HitCountPlot":
+            plot = HitCountPlot(
+                title=title,
+                date=report_date,
+                df=df,
+                previous_data=previous_dict,
+                value_column=value_column,
+                value_column_name=value_column_name,
+                damage_column=plot_config.get("damage_column", "damage_taken"),
                 name_column=name_column,
                 class_column=class_column,
                 current_fight_duration=current_fight_duration,

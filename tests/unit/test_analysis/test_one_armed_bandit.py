@@ -25,7 +25,7 @@ class TestOneArmedBanditAnalysis:
 
         # Check ANALYSIS_CONFIG
         assert hasattr(analysis, "ANALYSIS_CONFIG")
-        assert len(analysis.ANALYSIS_CONFIG) == 6
+        assert len(analysis.ANALYSIS_CONFIG) == 8
 
         # Verify specific analyses are configured
         analysis_names = [config["name"] for config in analysis.ANALYSIS_CONFIG]
@@ -36,6 +36,8 @@ class TestOneArmedBanditAnalysis:
             "Reel Assistants Damage",
             "Boss Damage",
             "Absorbed Damage to Reel Assistants",
+            "Damage Taken from Travelling Flames",
+            "Damage Taken from Pay-Line",
         ]
         for name in expected_names:
             assert name in analysis_names
@@ -46,7 +48,7 @@ class TestOneArmedBanditAnalysis:
 
         # Check PLOT_CONFIG
         assert hasattr(analysis, "PLOT_CONFIG")
-        assert len(analysis.PLOT_CONFIG) == 6
+        assert len(analysis.PLOT_CONFIG) == 8
 
         # Verify specific plots are configured
         plot_titles = [config["title"] for config in analysis.PLOT_CONFIG]
@@ -57,6 +59,8 @@ class TestOneArmedBanditAnalysis:
             "Schaden auf Reel Assistants",
             "Schaden auf Boss",
             "Absorbierter Schaden auf Reel Assistants",
+            "Schaden durch Travelling Flames",
+            "Schaden durch Coins",
         ]
         for title in expected_titles:
             assert title in plot_titles
@@ -107,13 +111,13 @@ class TestOneArmedBanditAnalysis:
         analysis._process_report_generic("test_report")
 
         # Should execute analysis for each configuration item
-        assert mock_execute_analysis.call_count == 6  # 6 analyses configured
+        assert mock_execute_analysis.call_count == 8  # 8 analyses configured
 
         # Verify results were added
         assert len(analysis.results) == 1
         result = analysis.results[0]
         assert result["reportCode"] == "test_report"
-        assert len(result["analysis"]) == 6
+        assert len(result["analysis"]) == 8
 
     def test_configuration_values(self, mock_api_client):
         """Test that configuration contains expected values."""

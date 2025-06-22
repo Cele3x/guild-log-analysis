@@ -244,3 +244,103 @@ class TestAPIIntegration:
         # The test should pass if the analysis runs without errors
         assert isinstance(analysis.results, list)  # Results should be a list
         # Note: Results may be empty if no players found, which is expected with mock data
+
+    @patch("src.guild_log_analysis.api.WarcraftLogsAPIClient.make_request")
+    def test_damage_taken_from_ability_integration(self, mock_execute_query, sample_players_data):
+        """Test damage taken from ability analysis integration."""
+        # Mock responses for the various API calls needed
+        mock_execute_query.side_effect = [
+            # Damage taken response
+            {
+                "data": {
+                    "reportData": {
+                        "report": {
+                            "table": {
+                                "data": {
+                                    "entries": [
+                                        {"name": "TestPlayer1", "total": 15000},
+                                        {"name": "TestPlayer2", "total": 8000},
+                                        {"name": "TestPlayer3", "total": 12000},
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+
+        from src.guild_log_analysis.analysis.base import BossAnalysisBase
+        from src.guild_log_analysis.api import WarcraftLogsAPIClient
+
+        # Create a test boss analysis with damage taken configuration
+        class TestDamageTakenAnalysis(BossAnalysisBase):
+            def __init__(self, api_client):
+                super().__init__(api_client)
+                self.boss_name = "Test Damage Taken Boss"
+                self.encounter_id = 3014
+                self.difficulty = 5
+
+            ANALYSIS_CONFIG = [
+                {
+                    "name": "Travelling Flames Damage",
+                    "type": "damage_taken_from_ability",
+                    "ability_id": 1223999,
+                    "result_key": "damage_taken_from_travelling_flames",
+                }
+            ]
+
+            PLOT_CONFIG = [
+                {
+                    "analysis_name": "Travelling Flames Damage",
+                    "plot_type": "NumberPlot",
+                    "title": "Damage Taken from Travelling Flames",
+                    "value_column": "damage_taken_from_travelling_flames",
+                    "value_column_name": "Damage Taken",
+                }
+            ]
+
+            def get_fight_ids(self, report_code):
+                return {1, 2}
+
+            def get_start_time(self, report_code, fight_ids):
+                return 1640995200.0
+
+            def get_total_fight_duration(self, report_code, fight_ids):
+                return 300000
+
+            def get_participants(self, report_code, fight_ids):
+                return sample_players_data
+
+        # Create API client and analysis
+        api_client = WarcraftLogsAPIClient(access_token="test_token")
+        analysis = TestDamageTakenAnalysis(api_client)
+
+        # Run analysis using configuration
+        analysis._analyze_generic(["test_report"])
+
+        # Verify results
+        assert len(analysis.results) == 1
+        report_result = analysis.results[0]
+        assert report_result["reportCode"] == "test_report"
+        assert len(report_result["analysis"]) == 1
+
+        damage_analysis = report_result["analysis"][0]
+        assert damage_analysis["name"] == "Travelling Flames Damage"
+        assert len(damage_analysis["data"]) == 3
+
+        # Check that damage was properly assigned with correct result_key
+        player_data = damage_analysis["data"]
+        player1 = next(p for p in player_data if p["player_name"] == "TestPlayer1")
+        assert player1["damage_taken_from_travelling_flames"] == 15000
+        assert "damage_taken" not in player1  # Original field should be renamed
+
+        # Verify API was called with correct parameters
+        mock_execute_query.assert_called_once()
+        call_args = mock_execute_query.call_args[0]
+        query = call_args[0]
+        variables = call_args[1]
+
+        assert "dataType: DamageTaken" in query
+        assert "abilityID: $abilityID" in query
+        assert variables["abilityID"] == 1223999

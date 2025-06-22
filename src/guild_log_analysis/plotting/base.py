@@ -625,3 +625,324 @@ class PercentagePlot(BaseTablePlot):
         if max_value == 0:
             return 0.0
         return float(value) / float(max_value)
+
+
+class HitCountPlot(BaseTablePlot):
+    """Plot for displaying hit count data with damage values shown alongside."""
+
+    def __init__(
+        self,
+        title: str,
+        date: str,
+        df: pd.DataFrame,
+        previous_data: Optional[dict[str, Any]] = None,
+        value_column: str = "hit_count",
+        value_column_name: Optional[str] = None,
+        damage_column: str = "damage_taken",
+        name_column: str = "player_name",
+        class_column: Optional[str] = "class",
+        current_fight_duration: Optional[int] = None,
+        previous_fight_duration: Optional[int] = None,
+        show_totals: bool = True,
+    ) -> None:
+        """
+        Initialize the hit count plot.
+
+        :param title: Plot title
+        :param date: Date string to display
+        :param df: DataFrame with current data
+        :param previous_data: Dictionary mapping names to previous values
+        :param value_column: Name of the column containing hit count values
+        :param value_column_name: Display name for the value column
+        :param damage_column: Name of the column containing damage values
+        :param name_column: Name of the column containing player/item names
+        :param class_column: Name of the column containing class information
+        :param current_fight_duration: Current total fight duration in milliseconds
+        :param previous_fight_duration: Previous total fight duration in milliseconds
+        :param show_totals: Whether to show totals row at bottom
+        """
+        self.damage_column = damage_column
+        super().__init__(
+            title=title,
+            date=date,
+            df=df,
+            previous_data=previous_data,
+            value_column=value_column,
+            value_column_name=value_column_name,
+            name_column=name_column,
+            class_column=class_column,
+            current_fight_duration=current_fight_duration,
+            previous_fight_duration=previous_fight_duration,
+            show_totals=show_totals,
+        )
+
+    def _get_value_display(self, value: Any) -> str:
+        """Format hit count for display."""
+        return format_number(value, 0)  # Hit counts are always integers
+
+    def _get_bar_width_ratio(self, value: Any, max_value: Any) -> float:
+        """Calculate bar width ratio for hit count."""
+        if max_value == 0:
+            return 0.0
+        return float(value) / float(max_value)
+
+    def create_plot(self, figsize: Optional[tuple[int, int]] = None) -> plt.Figure:
+        """
+        Create and return the complete plot with custom column structure.
+
+        :param figsize: Optional figure size tuple
+        :returns: Matplotlib figure object
+        """
+        if figsize is None:
+            # Calculate height based on number of rows plus totals row if needed
+            total_rows = len(self.df) + (1 if self.show_totals else 0)
+            figsize = (
+                22,  # Wider to accommodate damage column
+                int(total_rows * 0.7),  # Row height multiplier
+            )
+
+        fig, ax = plt.subplots(figsize=figsize)
+        fig.patch.set_facecolor(PlotColors.BACKGROUND)
+        ax.set_facecolor(PlotColors.BACKGROUND)
+        ax.axis("off")
+
+        # Configuration
+        row_height = 0.6
+        header_height = 0.6
+        table_width = 13
+        max_value = self.df[self.value_column].max()
+
+        columns = [
+            {"name": "Name", "width": 2.0, "align": "left"},
+            {"name": "", "width": 1.5, "align": "right"},
+            {"name": self.value_column_name, "width": 6.5, "align": "left"},
+            {"name": "", "width": 1.0, "align": "left"},
+            {"name": "Change", "width": 2.0, "align": "left"},
+        ]
+
+        col_positions = []
+        current_x = 0.2
+        for col in columns:
+            col_positions.append(current_x)
+            current_x += col["width"]
+
+        title_y = float(len(self.df)) + 1.15
+        ax.text(
+            table_width / 2,
+            title_y,
+            self.title,
+            fontsize=22,
+            fontweight="bold",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="center",
+            fontfamily=TITLE_FONT,
+        )
+        ax.text(
+            table_width / 2,
+            title_y - 0.4,
+            self.date,
+            fontsize=18,
+            style="italic",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="center",
+            fontfamily=TITLE_FONT,
+        )
+
+        self._draw_header(
+            ax,
+            columns,
+            col_positions,
+            len(self.df),
+            table_width,
+            header_height,
+        )
+
+        self._draw_data_rows(ax, columns, col_positions, row_height, table_width, max_value)
+
+        if self.show_totals:
+            self._draw_totals_row_hitcount(ax, columns, col_positions, row_height)
+
+        ax.set_xlim(-0.2, table_width + 0.2)
+
+        # Calculate actual totals row position to set proper limits
+        if self.show_totals:
+            last_data_row_y = len(self.df) - (len(self.df) - 1) * row_height - row_height / 2
+            totals_y_pos = last_data_row_y - row_height
+            bottom_limit = totals_y_pos - row_height / 2  # Give some margin below totals
+        else:
+            bottom_limit = len(self.df) - len(self.df) * row_height
+
+        ax.set_ylim(bottom_limit, len(self.df) + 1.5)
+
+        return fig
+
+    def _draw_data_rows(
+        self,
+        ax: plt.Axes,
+        columns: list[dict],
+        col_positions: list[float],
+        row_height: float,
+        table_width: float,
+        max_value: Any,
+    ) -> None:
+        """Draw data rows with values, bars, and damage column."""
+        for idx, (_, row) in enumerate(self.df.iterrows()):
+            y_pos = len(self.df) - idx * row_height - row_height / 2
+
+            # Row background
+            row_rect = plt.Rectangle(
+                (0, y_pos - row_height / 2),
+                table_width,
+                row_height,
+                facecolor=(PlotColors.ROW_ALT if idx % 2 == 1 else PlotColors.CHART_BG),
+                alpha=1 if idx % 2 == 1 else 0.2,
+            )
+            ax.add_patch(row_rect)
+
+            # Name with class color
+            name = row[self.name_column]
+            class_color = PlotColors.TEXT_PRIMARY
+            if self.class_column and self.class_column in row:
+                class_color = PlotStyleManager.get_class_color(row[self.class_column])
+
+            ax.text(
+                col_positions[0] + 0.1,
+                y_pos,
+                name,
+                fontsize=18,
+                fontweight="normal",
+                color=class_color,
+                ha="left",
+                va="center",
+                fontfamily=NAME_FONT,
+            )
+
+            # Value number in separate column
+            current_value = row[self.value_column]
+            value_display = self._get_value_display(current_value)
+
+            ax.text(
+                col_positions[1] + columns[1]["width"] - 0.1,
+                y_pos,
+                value_display,
+                fontsize=18,
+                fontweight="normal",
+                color="white",
+                ha="right",
+                va="center",
+            )
+
+            # Value bar
+            self._draw_value_bar(
+                ax,
+                col_positions[2],
+                y_pos,
+                current_value,
+                max_value,
+                class_color,
+            )
+
+            damage_value = row.get(self.damage_column, 0)
+            damage_display = format_number(damage_value)
+
+            ax.text(
+                col_positions[3] + columns[3]["width"] - 0.1,
+                y_pos,
+                damage_display,
+                fontsize=18,
+                fontweight="normal",
+                color="white",
+                ha="right",
+                va="center",
+            )
+
+            # Change indicator
+            prev_value = row["previous_value"]
+            change_text, change_color = self._calculate_change(current_value, prev_value)
+
+            ax.text(
+                col_positions[4] + 0.1,
+                y_pos,
+                change_text,
+                fontsize=18,
+                fontweight="normal",
+                color=change_color,
+                ha="left",
+                va="center",
+            )
+
+    def _draw_totals_row_hitcount(
+        self,
+        ax: plt.Axes,
+        columns: list[dict],
+        col_positions: list[float],
+        row_height: float,
+    ) -> None:
+        """Draw the totals row at the bottom of the table."""
+        last_data_row_y = len(self.df) - (len(self.df) - 1) * row_height - row_height / 2
+        totals_y_pos = last_data_row_y - row_height
+
+        # Separator line above totals
+        separator_y = totals_y_pos + row_height / 2
+        ax.axhline(
+            y=separator_y,
+            xmin=0.02,
+            xmax=0.98,
+            color=PlotColors.BORDER,
+            linewidth=2,
+            alpha=1.0,
+        )
+
+        # Totals label
+        ax.text(
+            col_positions[0] + 0.1,
+            totals_y_pos,
+            "Total",
+            fontsize=18,
+            fontweight="bold",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="left",
+            va="center",
+            fontfamily=HEADER_FONT,
+        )
+
+        # Totals value
+        total_display = self._get_value_display(self.current_total)
+        ax.text(
+            col_positions[1] + columns[1]["width"] - 0.1,
+            totals_y_pos,
+            total_display,
+            fontsize=18,
+            fontweight="bold",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="right",
+            va="center",
+        )
+
+        # Total damage
+        total_damage = self.df[self.damage_column].sum()
+        damage_display = format_number(total_damage)
+        ax.text(
+            col_positions[3] + columns[3]["width"] - 0.1,
+            totals_y_pos,
+            damage_display,
+            fontsize=18,
+            fontweight="bold",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="right",
+            va="center",
+        )
+
+        # Change indicator
+        if self.previous_total is not None:
+            change_text, change_color = self._calculate_change(self.current_total, self.previous_total)
+            ax.text(
+                col_positions[4] + 0.1,
+                totals_y_pos,
+                change_text,
+                fontsize=18,
+                fontweight="bold",
+                color=change_color,
+                ha="left",
+                va="center",
+            )

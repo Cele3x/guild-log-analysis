@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Role-based Filtering**: Added role filtering system for analyses and plots
 - **Role Constants**: Added PlayerRoles class with TANK, HEALER, DPS constants
 - **Enhanced GraphQL Queries**: Improved query structure and empty data validation
+- **HitCountPlot**: New specialized plot type for displaying hit count data with damage values
+- **Damage Taken Analysis**: Added `damage_taken_from_ability` analysis type using GraphQL DamageTaken queries
+- **Hit Count Metrics**: Support for both hit count and total damage data from API responses
+- **Dual Column Display**: HitCountPlot shows hit count as primary metric with damage in separate column
 
 ### Changed
 - **Plot Layout**: Adjusted spacing and positioning for optimal totals row integration
@@ -27,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Change Calculations**: Enhanced precision for duration-based change calculations with scaled formatting
 - **Analysis Architecture**: Updated base analysis to support role filtering in configurations
 - **Plot System**: Streamlined to use exclusively duration-based metrics for more accurate comparisons
+- **GraphQL Parameters**: Fixed ability ID parameter type from Int! to Float! for damage taken queries
+- **One-Armed Bandit Config**: Updated to use HitCountPlot for damage taken analyses
 
 ### Fixed
 - **Change Calculation**: Fixed "N/A" issue for NumberPlot totals (numpy type handling)
@@ -34,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Title Positioning**: Optimized spacing between title/subtitle and header row
 - **Duration Tracking**: Eliminated fight count parameters throughout plotting system
 - **Test Suite**: Updated all tests to use duration parameters instead of fight counts
+- **Duplicate Player Handling**: Fixed value doubling for players who switch roles between attempts
+- **HitCountPlot Layout**: Fixed damage column positioning to appear right of value bar instead of overlapping
 
 ### Technical Details
 - Totals row enabled by default with `show_totals=True` parameter
@@ -44,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duration-based change calculations provide per-minute rate comparisons
 - Enhanced change formatting with 3 decimal places for small values
 - Comprehensive test coverage for role filtering functionality
+- HitCountPlot uses maximum values instead of sum for duplicate player handling
+- Damage taken queries use dataType: DamageTaken with abilityID parameter
+- HitCountPlot inherits from BaseTablePlot with minimal method overrides
+- Custom 5-column layout for HitCountPlot: Name, Hit Count Value, Hit Count Bar, Damage, Change
 
 ## [2.0.0] - 2025-06-15
 

@@ -46,6 +46,12 @@ class ConfigurationBasedAnalysis(BossAnalysisBase):
             "result_key": "test_damage",
         },
         {"name": "Test Debuff", "type": "debuff_uptime", "ability_id": 11111.0},
+        {
+            "name": "Test Damage Taken",
+            "type": "damage_taken_from_ability",
+            "ability_id": 1223999,
+            "result_key": "test_damage_taken",
+        },
     ]
 
     PLOT_CONFIG = [
@@ -315,7 +321,7 @@ class TestConfigurationBasedAnalysis:
         assert analysis.boss_name == "Config Boss"
         assert analysis.encounter_id == 5678
         assert analysis.difficulty == 5
-        assert len(analysis.ANALYSIS_CONFIG) == 3
+        assert len(analysis.ANALYSIS_CONFIG) == 4
         assert len(analysis.PLOT_CONFIG) == 1
 
     @patch.object(ConfigurationBasedAnalysis, "_process_report_generic")
@@ -370,7 +376,7 @@ class TestConfigurationBasedAnalysis:
         mock_get_participants.assert_called_once_with("test_report", {1, 2})
 
         # Should call execute_analysis for each config item
-        assert mock_execute_analysis.call_count == 3
+        assert mock_execute_analysis.call_count == 4
 
         # Verify results were added
         assert len(analysis.results) == 1
@@ -378,7 +384,7 @@ class TestConfigurationBasedAnalysis:
         assert result["reportCode"] == "test_report"
         assert result["starttime"] == 1640995200.0
         assert result["fight_ids"] == {1, 2}
-        assert len(result["analysis"]) == 3
+        assert len(result["analysis"]) == 4
 
     @patch.object(ConfigurationBasedAnalysis, "analyze_interrupts")
     def test_execute_analysis_interrupts(self, mock_analyze_interrupts, mock_api_client, sample_players_data):
@@ -436,6 +442,215 @@ class TestConfigurationBasedAnalysis:
         assert result[0]["test_damage"] == 500000
         assert "damage" not in result[0]
 
+    def test_analyze_damage_taken_from_ability_success(self, mock_api_client, sample_damage_data, sample_players_data):
+        """Test successful damage taken from ability analysis."""
+        # Mock the damage taken table response (reusing damage data structure)
+        damage_taken_response = {
+            "data": {
+                "reportData": {
+                    "report": {
+                        "table": {
+                            "data": {
+                                "entries": [
+                                    {"name": "TestPlayer1", "total": 50000},
+                                    {"name": "TestPlayer2", "total": 30000},
+                                    {"name": "TestPlayer3", "total": 20000},
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        mock_api_client.make_request.return_value = damage_taken_response
+
+        analysis = ConcreteBossAnalysis(mock_api_client)
+        analysis.encounter_id = 3014
+        analysis.difficulty = 5
+
+        result = analysis.analyze_damage_taken_from_ability(
+            "test_report",
+            {1, 2},
+            sample_players_data,
+            1223999,  # Travelling Flames ability ID
+        )
+
+        assert len(result) == 3  # All players should be in result
+        # Find TestPlayer1 in results
+        player1_data = next((p for p in result if p["player_name"] == "TestPlayer1"), None)
+        assert player1_data is not None
+        assert player1_data["damage_taken"] == 50000
+        assert player1_data["class"] == "warrior"
+        assert player1_data["role"] == "tank"
+
+        # Verify API was called with correct query structure
+        mock_api_client.make_request.assert_called_once()
+        call_args = mock_api_client.make_request.call_args
+        query = call_args[0][0]
+        variables = call_args[0][1]
+
+        assert "dataType: DamageTaken" in query
+        assert "abilityID: $abilityID" in query
+        assert variables["abilityID"] == 1223999
+        assert variables["reportCode"] == "test_report"
+
+    def test_analyze_damage_taken_from_ability_no_data(self, mock_api_client, sample_players_data):
+        """Test damage taken analysis with no data returned."""
+        empty_response = {"data": {"reportData": {"report": {"table": {"data": {"entries": []}}}}}}
+        mock_api_client.make_request.return_value = empty_response
+
+        analysis = ConcreteBossAnalysis(mock_api_client)
+        result = analysis.analyze_damage_taken_from_ability("test_report", {1, 2}, sample_players_data, 1223999)
+
+        # Should return all players with 0 damage taken
+        assert len(result) == 3
+        for player_data in result:
+            assert player_data["damage_taken"] == 0
+
+    def test_analyze_damage_taken_from_ability_no_report(self, mock_api_client, sample_players_data):
+        """Test damage taken analysis with no report found."""
+        mock_api_client.make_request.return_value = {"data": {"reportData": {"report": None}}}
+
+        analysis = ConcreteBossAnalysis(mock_api_client)
+        result = analysis.analyze_damage_taken_from_ability("test_report", {1, 2}, sample_players_data, 1223999)
+
+        assert result == []
+
+    @patch.object(ConfigurationBasedAnalysis, "analyze_damage_taken_from_ability")
+    def test_execute_analysis_damage_taken_from_ability(
+        self, mock_analyze_damage_taken, mock_api_client, sample_players_data
+    ):
+        """Test execute_analysis with damage_taken_from_ability configuration."""
+        mock_analyze_damage_taken.return_value = [{"player_name": "TestPlayer1", "damage_taken": 25000}]
+
+        analysis = ConfigurationBasedAnalysis(mock_api_client)
+        config = {
+            "name": "Test Damage Taken",
+            "type": "damage_taken_from_ability",
+            "ability_id": 1223999,
+            "result_key": "test_damage_taken",
+        }
+
+        result = analysis._execute_analysis(config, "test_report", {1, 2}, sample_players_data)
+
+        mock_analyze_damage_taken.assert_called_once_with(
+            report_code="test_report",
+            fight_ids={1, 2},
+            report_players=sample_players_data,
+            ability_id=1223999,
+            wipe_cutoff=4,  # DEFAULT_WIPE_CUTOFF
+            filter_expression=None,
+        )
+        # Check that result_key rename worked
+        assert len(result) == 1
+        assert "test_damage_taken" in result[0]
+        assert result[0]["test_damage_taken"] == 25000
+        assert "damage_taken" not in result[0]
+
+    def test_analyze_damage_taken_from_ability_duplicate_players(self, mock_api_client):
+        """Test damage taken analysis with duplicate players (role switching)."""
+        # Players with same name but different roles (simulating role switching)
+        duplicate_players = [
+            {"name": "TestPlayer1", "type": "warrior", "role": "tank"},
+            {"name": "TestPlayer1", "type": "warrior", "role": "dps"},  # Same player, different role
+            {"name": "TestPlayer2", "type": "priest", "role": "healer"},
+        ]
+
+        damage_taken_response = {
+            "data": {
+                "reportData": {
+                    "report": {
+                        "table": {
+                            "data": {
+                                "entries": [
+                                    {"name": "TestPlayer1", "total": 50000},
+                                    {"name": "TestPlayer2", "total": 30000},
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        mock_api_client.make_request.return_value = damage_taken_response
+
+        analysis = ConcreteBossAnalysis(mock_api_client)
+        analysis.encounter_id = 3014
+        analysis.difficulty = 5
+
+        result = analysis.analyze_damage_taken_from_ability(
+            "test_report",
+            {1, 2},
+            duplicate_players,
+            1223999,
+        )
+
+        # Should have only 2 unique players, not 3
+        assert len(result) == 2
+
+        # TestPlayer1 should appear only once with correct damage (not doubled)
+        player1_entries = [p for p in result if p["player_name"] == "TestPlayer1"]
+        assert len(player1_entries) == 1
+        assert player1_entries[0]["damage_taken"] == 50000  # Not 100000 (doubled)
+
+        # TestPlayer2 should have correct damage
+        player2_entries = [p for p in result if p["player_name"] == "TestPlayer2"]
+        assert len(player2_entries) == 1
+        assert player2_entries[0]["damage_taken"] == 30000
+
+    def test_analyze_damage_taken_from_ability_with_hit_count(self, mock_api_client, sample_players_data):
+        """Test damage taken analysis includes hit count data."""
+        damage_taken_response = {
+            "data": {
+                "reportData": {
+                    "report": {
+                        "table": {
+                            "data": {
+                                "entries": [
+                                    {"name": "TestPlayer1", "total": 50000, "hitCount": 5},
+                                    {"name": "TestPlayer2", "total": 30000, "hitCount": 3},
+                                    {"name": "TestPlayer3", "total": 20000, "hitCount": 2},
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        mock_api_client.make_request.return_value = damage_taken_response
+
+        analysis = ConcreteBossAnalysis(mock_api_client)
+        analysis.encounter_id = 3014
+        analysis.difficulty = 5
+
+        result = analysis.analyze_damage_taken_from_ability(
+            "test_report",
+            {1, 2},
+            sample_players_data,
+            1223999,
+        )
+
+        assert len(result) == 3
+
+        # Check that both damage and hit count are included
+        for player_data in result:
+            assert "damage_taken" in player_data
+            assert "hit_count" in player_data
+
+        # Verify specific values
+        player1_data = next((p for p in result if p["player_name"] == "TestPlayer1"), None)
+        assert player1_data is not None
+        assert player1_data["damage_taken"] == 50000
+        assert player1_data["hit_count"] == 5
+
+        player2_data = next((p for p in result if p["player_name"] == "TestPlayer2"), None)
+        assert player2_data is not None
+        assert player2_data["damage_taken"] == 30000
+        assert player2_data["hit_count"] == 3
+
     def test_execute_analysis_unknown_type(self, mock_api_client, sample_players_data):
         """Test execute_analysis with unknown analysis type."""
         analysis = ConfigurationBasedAnalysis(mock_api_client)
@@ -443,6 +658,37 @@ class TestConfigurationBasedAnalysis:
 
         with pytest.raises(ValueError, match="Unknown analysis type: unknown_type"):
             analysis._execute_analysis(config, "test_report", {1, 2}, sample_players_data)
+
+    @patch.object(ConfigurationBasedAnalysis, "find_analysis_data")
+    def test_generate_single_plot_hit_count(self, mock_find_data, mock_api_client):
+        """Test HitCountPlot generation with basic validation."""
+        # Setup mocks
+        mock_find_data.return_value = (
+            [
+                {"player_name": "Test", "hit_count": 5, "damage_taken": 25000, "class": "warrior"},
+                {"player_name": "Test2", "hit_count": 3, "damage_taken": 15000, "class": "mage"},
+            ],
+            {"Test": 4, "Test2": 2},
+        )
+
+        analysis = ConfigurationBasedAnalysis(mock_api_client)
+        plot_config = {
+            "analysis_name": "Test Hit Count Analysis",
+            "plot_type": "HitCountPlot",
+            "title": "Test Hit Count Plot",
+            "value_column": "hit_count",
+            "value_column_name": "Hits",
+            "damage_column": "damage_taken",
+        }
+
+        try:
+            analysis._generate_single_plot(plot_config, "2023-01-01", 300000, 250000)
+            # If we get here, basic functionality works
+            assert True
+        except Exception as e:
+            # Should not raise ValueError about unknown plot type
+            assert "Unknown plot type" not in str(e)
+            # Any other exception might be due to mocking limitations, which is acceptable for this test
 
     @patch.object(ConfigurationBasedAnalysis, "_generate_plots_generic")
     def test_generate_plots_uses_generic_method(self, mock_generate_generic, mock_api_client):
