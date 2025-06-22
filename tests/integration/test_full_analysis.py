@@ -68,31 +68,27 @@ class TestFullAnalysisWorkflow:
             assert callable(analyzer.analyze_one_armed_bandit)
             assert callable(analyzer.generate_one_armed_bandit_plots)
 
+    @patch("src.guild_log_analysis.main.OneArmedBanditAnalysis")
     @patch("src.guild_log_analysis.main.get_access_token")
-    def test_analyze_one_armed_bandit_auto_generated(self, mock_get_access_token):
+    def test_analyze_one_armed_bandit_auto_generated(self, mock_get_access_token, mock_analysis_class):
         """Test auto-generated analyze method works."""
         mock_get_access_token.return_value = "oauth_token"
 
+        mock_analysis = Mock()
+        mock_analysis_class.return_value = mock_analysis
+
         analyzer = GuildLogAnalyzer()
+        report_codes = ["report1", "report2"]
+        analyzer.analyze_one_armed_bandit(report_codes)
 
-        # Mock the analysis class that gets created internally
-        with patch(
-            "src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis"
-        ) as mock_analysis_class:
-            mock_analysis = Mock()
-            mock_analysis_class.return_value = mock_analysis
+        # Verify the analysis was created and analyze was called
+        mock_analysis_class.assert_called_once_with(analyzer.api_client)
+        mock_analysis.analyze.assert_called_once_with(report_codes)
+        assert analyzer.analyses["one_armed_bandit"] == mock_analysis
 
-            report_codes = ["report1", "report2"]
-            analyzer.analyze_one_armed_bandit(report_codes)
-
-            # Verify the analysis was created and analyze was called
-            mock_analysis_class.assert_called_once_with(analyzer.api_client)
-            mock_analysis.analyze.assert_called_once_with(report_codes)
-            assert analyzer.analyses["one_armed_bandit"] == mock_analysis
-
+    @patch("src.guild_log_analysis.main.OneArmedBanditAnalysis")
     @patch("src.guild_log_analysis.main.get_access_token")
-    @patch("src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis")
-    def test_analyze_one_armed_bandit_legacy_compatibility(self, mock_analysis_class, mock_get_access_token):
+    def test_analyze_one_armed_bandit_legacy_compatibility(self, mock_get_access_token, mock_analysis_class):
         """Test One-Armed Bandit analysis workflow."""
         mock_get_access_token.return_value = "oauth_token"
 
