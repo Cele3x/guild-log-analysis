@@ -16,7 +16,7 @@ DEFAULT_REDIRECT_URI = "http://localhost:8080"
 
 # Analysis Configuration
 DEFAULT_DIFFICULTY = 5  # Mythic
-DEFAULT_WIPE_CUTOFF = 4  # Fights shorter than 4 seconds are considered wipes
+DEFAULT_WIPE_CUTOFF = 4  # Stop counting events after 4 players have died
 
 # Logging Configuration
 DEFAULT_LOG_LEVEL = "INFO"

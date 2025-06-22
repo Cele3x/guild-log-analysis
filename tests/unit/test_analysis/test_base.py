@@ -37,31 +37,46 @@ class ConfigurationBasedAnalysis(BossAnalysisBase):
         self.encounter_id = 5678
         self.difficulty = 5
 
-    ANALYSIS_CONFIG = [
-        {"name": "Test Interrupts", "type": "interrupts", "ability_id": 12345},
+    CONFIG = [
+        {
+            "name": "Test Interrupts",
+            "analysis": {"type": "interrupts", "ability_id": 12345},
+            "plot": {
+                "type": "NumberPlot",
+                "title": "Test Interrupts",
+                "column_key_1": "interrupts",
+                "column_header_2": "Count",
+            },
+        },
         {
             "name": "Test Damage",
-            "type": "damage_to_actor",
-            "target_game_id": 67890,
-            "result_key": "test_damage",
+            "analysis": {"type": "damage_to_actor", "target_game_id": 67890},
+            "plot": {
+                "type": "NumberPlot",
+                "column_key_1": "test_damage",
+                "column_header_2": "Damage",
+            },
         },
-        {"name": "Test Debuff", "type": "debuff_uptime", "ability_id": 11111.0},
+        {
+            "name": "Test Debuff",
+            "analysis": {"type": "debuff_uptime", "ability_id": 11111.0},
+            "plot": {
+                "type": "PercentagePlot",
+                "column_key_1": "uptime_percentage",
+                "column_header_2": "Uptime",
+            },
+        },
         {
             "name": "Test Damage Taken",
-            "type": "damage_taken_from_ability",
-            "ability_id": 1223999,
-            "result_key": "test_damage_taken",
+            "analysis": {"type": "damage_taken_from_ability", "ability_id": 1223999},
+            "plot": {
+                "type": "HitCountPlot",
+                "column_key_1": "hit_count",
+                "column_header_2": "Hits",
+                "column_key_2": "test_damage_taken",
+                "column_header_3": "Damage Taken",
+            },
         },
-    ]
-
-    PLOT_CONFIG = [
-        {
-            "analysis_name": "Test Interrupts",
-            "plot_type": "NumberPlot",
-            "title": "Test Interrupts",
-            "value_column": "interrupts",
-            "value_column_name": "Count",
-        }
     ]
 
 
@@ -321,8 +336,7 @@ class TestConfigurationBasedAnalysis:
         assert analysis.boss_name == "Config Boss"
         assert analysis.encounter_id == 5678
         assert analysis.difficulty == 5
-        assert len(analysis.ANALYSIS_CONFIG) == 4
-        assert len(analysis.PLOT_CONFIG) == 1
+        assert len(analysis.CONFIG) == 4
 
     @patch.object(ConfigurationBasedAnalysis, "_process_report_generic")
     def test_analyze_uses_generic_method(self, mock_process_generic, mock_api_client):
@@ -341,7 +355,7 @@ class TestConfigurationBasedAnalysis:
         """Test that analyze falls back to legacy method when no configuration."""
         analysis = ConcreteBossAnalysis(mock_api_client)
         # Clear the ANALYSIS_CONFIG to test fallback
-        analysis.ANALYSIS_CONFIG = []
+        analysis.CONFIG = []
         report_codes = ["report1"]
 
         # Should not raise exception when calling _analyze_legacy
@@ -401,6 +415,7 @@ class TestConfigurationBasedAnalysis:
             fight_ids={1, 2},
             report_players=sample_players_data,
             ability_id=12345,
+            wipe_cutoff=4,  # DEFAULT_WIPE_CUTOFF
         )
         assert len(result) == 1
         assert result[0]["interrupts"] == 5
@@ -674,11 +689,12 @@ class TestConfigurationBasedAnalysis:
         analysis = ConfigurationBasedAnalysis(mock_api_client)
         plot_config = {
             "analysis_name": "Test Hit Count Analysis",
-            "plot_type": "HitCountPlot",
+            "type": "HitCountPlot",
             "title": "Test Hit Count Plot",
-            "value_column": "hit_count",
-            "value_column_name": "Hits",
-            "damage_column": "damage_taken",
+            "column_key_1": "hit_count",
+            "column_header_1": "Hits",
+            "column_key_2": "damage_taken",
+            "column_header_2": "Damage",
         }
 
         try:
@@ -709,10 +725,10 @@ class TestConfigurationBasedAnalysis:
         analysis = ConfigurationBasedAnalysis(mock_api_client)
         plot_config = {
             "analysis_name": "Test Interrupts",
-            "plot_type": "NumberPlot",
+            "type": "NumberPlot",
             "title": "Test Plot",
-            "value_column": "interrupts",
-            "value_column_name": "Count",
+            "column_key_1": "interrupts",
+            "column_header_1": "Count",
         }
 
         # Test that the method doesn't raise an exception with valid config
@@ -740,10 +756,10 @@ class TestConfigurationBasedAnalysis:
         ]
         plot_config = {
             "analysis_name": "Test",
-            "plot_type": "UnknownPlot",
+            "type": "UnknownPlot",
             "title": "Test",
-            "value_column": "test",
-            "value_column_name": "Test",
+            "column_key_1": "test",
+            "column_header_1": "Test",
         }
 
         with pytest.raises(ValueError, match="Unknown plot type: UnknownPlot"):

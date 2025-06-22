@@ -68,31 +68,27 @@ class TestFullAnalysisWorkflow:
             assert callable(analyzer.analyze_one_armed_bandit)
             assert callable(analyzer.generate_one_armed_bandit_plots)
 
+    @patch("src.guild_log_analysis.main.OneArmedBanditAnalysis")
     @patch("src.guild_log_analysis.main.get_access_token")
-    def test_analyze_one_armed_bandit_auto_generated(self, mock_get_access_token):
+    def test_analyze_one_armed_bandit_auto_generated(self, mock_get_access_token, mock_analysis_class):
         """Test auto-generated analyze method works."""
         mock_get_access_token.return_value = "oauth_token"
 
+        mock_analysis = Mock()
+        mock_analysis_class.return_value = mock_analysis
+
         analyzer = GuildLogAnalyzer()
+        report_codes = ["report1", "report2"]
+        analyzer.analyze_one_armed_bandit(report_codes)
 
-        # Mock the analysis class that gets created internally
-        with patch(
-            "src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis"
-        ) as mock_analysis_class:
-            mock_analysis = Mock()
-            mock_analysis_class.return_value = mock_analysis
+        # Verify the analysis was created and analyze was called
+        mock_analysis_class.assert_called_once_with(analyzer.api_client)
+        mock_analysis.analyze.assert_called_once_with(report_codes)
+        assert analyzer.analyses["one_armed_bandit"] == mock_analysis
 
-            report_codes = ["report1", "report2"]
-            analyzer.analyze_one_armed_bandit(report_codes)
-
-            # Verify the analysis was created and analyze was called
-            mock_analysis_class.assert_called_once_with(analyzer.api_client)
-            mock_analysis.analyze.assert_called_once_with(report_codes)
-            assert analyzer.analyses["one_armed_bandit"] == mock_analysis
-
+    @patch("src.guild_log_analysis.main.OneArmedBanditAnalysis")
     @patch("src.guild_log_analysis.main.get_access_token")
-    @patch("src.guild_log_analysis.analysis.bosses.one_armed_bandit.OneArmedBanditAnalysis")
-    def test_analyze_one_armed_bandit_legacy_compatibility(self, mock_analysis_class, mock_get_access_token):
+    def test_analyze_one_armed_bandit_legacy_compatibility(self, mock_get_access_token, mock_analysis_class):
         """Test One-Armed Bandit analysis workflow."""
         mock_get_access_token.return_value = "oauth_token"
 
@@ -126,7 +122,7 @@ class TestFullAnalysisWorkflow:
         ]
 
         # Mock find_analysis_data method to return data
-        def mock_find_analysis_data(analysis_name, value_column, name_column):
+        def mock_find_analysis_data(analysis_name, column_key_1, name_column):
             for analysis_data in mock_analysis.results[0]["analysis"]:
                 if analysis_data["name"] == analysis_name:
                     return analysis_data["data"], {}
@@ -281,22 +277,19 @@ class TestAPIIntegration:
                 self.encounter_id = 3014
                 self.difficulty = 5
 
-            ANALYSIS_CONFIG = [
+            CONFIG = [
                 {
                     "name": "Travelling Flames Damage",
-                    "type": "damage_taken_from_ability",
-                    "ability_id": 1223999,
-                    "result_key": "damage_taken_from_travelling_flames",
-                }
-            ]
-
-            PLOT_CONFIG = [
-                {
-                    "analysis_name": "Travelling Flames Damage",
-                    "plot_type": "NumberPlot",
-                    "title": "Damage Taken from Travelling Flames",
-                    "value_column": "damage_taken_from_travelling_flames",
-                    "value_column_name": "Damage Taken",
+                    "analysis": {
+                        "type": "damage_taken_from_ability",
+                        "ability_id": 1223999,
+                    },
+                    "plot": {
+                        "type": "NumberPlot",
+                        "title": "Damage Taken from Travelling Flames",
+                        "column_key_1": "travelling_flames_damage",
+                        "column_header_2": "Damage Taken",
+                    },
                 }
             ]
 
@@ -332,7 +325,7 @@ class TestAPIIntegration:
         # Check that damage was properly assigned with correct result_key
         player_data = damage_analysis["data"]
         player1 = next(p for p in player_data if p["player_name"] == "TestPlayer1")
-        assert player1["damage_taken_from_travelling_flames"] == 15000
+        assert player1["travelling_flames_damage"] == 15000
         assert "damage_taken" not in player1  # Original field should be renamed
 
         # Verify API was called with correct parameters

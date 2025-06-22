@@ -103,10 +103,10 @@ class TestRoleFiltering:
         """Test that plot config can include role filtering."""
         config = {
             "analysis_name": "Test Analysis",
-            "plot_type": "NumberPlot",
+            "type": "NumberPlot",
             "title": "Test Plot",
-            "value_column": "test_value",
-            "value_column_name": "Test Value",
+            "column_key_1": "test_value",
+            "column_header_1": "Test Value",
             "roles": [PlayerRoles.DPS],
         }
 

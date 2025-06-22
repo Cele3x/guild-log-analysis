@@ -16,121 +16,99 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
         self.encounter_id = 3014
         self.difficulty = 5
 
-    # Analysis configuration
-    ANALYSIS_CONFIG = [
+    CONFIG = [
         {
             "name": "Overload! Interrupts",
-            "type": "interrupts",
-            "ability_id": 460582.0,
+            "analysis": {
+                "type": "interrupts",
+                "ability_id": 460582,
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "column_key_1": "interrupts",
+            },
         },
         {
-            "name": "High Roller Uptime",
-            "type": "debuff_uptime",
-            "ability_id": 460444.0,
+            "name": "High Roller! Buff Uptime",
+            "analysis": {
+                "type": "debuff_uptime",
+                "ability_id": 460444,
+            },
+            "plot": {
+                "type": "PercentagePlot",
+                "column_key_1": "uptime_percentage",
+            },
         },
         {
-            "name": "Premium Dynamite Booties Damage",
-            "type": "damage_to_actor",
-            "target_game_id": 231027,
-            "result_key": "damage_to_dynamite_booties",
+            "name": "Damage to Small Packages",
             "roles": [PlayerRoles.DPS],
+            "analysis": {
+                "type": "damage_to_actor",
+                "target_game_id": 231027,
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "column_key_1": "damage_to_small_packages",
+            },
         },
         {
-            "name": "Reel Assistants Damage",
-            "type": "damage_to_actor",
-            "target_game_id": 228463,
-            "result_key": "damage_to_reel_assistants",
+            "name": "Damage to Reel Assistants",
             "roles": [PlayerRoles.DPS],
+            "analysis": {
+                "type": "damage_to_actor",
+                "target_game_id": 228463,
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "column_key_1": "damage_to_reel_assistants",
+            },
         },
         {
-            "name": "Boss Damage",
-            "type": "damage_to_actor",
-            "target_game_id": 228458,
-            "result_key": "damage_to_boss",
+            "name": "Damage to Boss",
+            "analysis": {
+                "type": "damage_to_actor",
+                "target_game_id": 228458,
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "column_key_1": "damage_to_boss",
+            },
         },
         {
             "name": "Absorbed Damage to Reel Assistants",
-            "type": "damage_to_actor",
-            "target_game_id": 228463,
-            "result_key": "absorbed_damage_to_reel_assistants",
-            "filter_expression": "absorbedDamage > 0",
             "roles": [PlayerRoles.DPS],
+            "analysis": {
+                "type": "damage_to_actor",
+                "target_game_id": 228463,
+                "filter_expression": "absorbedDamage > 0",
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "column_key_1": "absorbed_damage_to_reel_assistants",
+            },
         },
         {
-            "name": "Damage Taken from Travelling Flames",
-            "type": "damage_taken_from_ability",
-            "ability_id": 1223999.0,
-            "result_key": "damage_taken_from_travelling_flames",
+            "name": "Hits by Travelling Flames",
+            "analysis": {
+                "type": "damage_taken_from_ability",
+                "ability_id": 1223999,
+            },
+            "plot": {
+                "type": "HitCountPlot",
+                "column_key_1": "hit_count",
+                "column_key_2": "hits_by_travelling_flames",
+            },
         },
         {
-            "name": "Damage Taken from Pay-Line",
-            "type": "damage_taken_from_ability",
-            "ability_id": 460424.0,
-            "result_key": "damage_taken_from_payline",
-        },
-    ]
-
-    # Plot configuration
-    PLOT_CONFIG = [
-        {
-            "analysis_name": "Overload! Interrupts",
-            "plot_type": "NumberPlot",
-            "title": "Overload! Interrupts",
-            "value_column": "interrupts",
-            "value_column_name": "Interrupts",
-        },
-        {
-            "analysis_name": "High Roller Uptime",
-            "plot_type": "PercentagePlot",
-            "title": "High Roller Uptime",
-            "value_column": "uptime_percentage",
-            "value_column_name": "Uptime",
-        },
-        {
-            "analysis_name": "Premium Dynamite Booties Damage",
-            "plot_type": "NumberPlot",
-            "title": "Schaden auf Geschenke",
-            "value_column": "damage_to_dynamite_booties",
-            "value_column_name": "Schaden",
-            "roles": [PlayerRoles.DPS],
-        },
-        {
-            "analysis_name": "Reel Assistants Damage",
-            "plot_type": "NumberPlot",
-            "title": "Schaden auf Reel Assistants",
-            "value_column": "damage_to_reel_assistants",
-            "value_column_name": "Schaden",
-            "roles": [PlayerRoles.DPS],
-        },
-        {
-            "analysis_name": "Boss Damage",
-            "plot_type": "NumberPlot",
-            "title": "Schaden auf Boss",
-            "value_column": "damage_to_boss",
-            "value_column_name": "Schaden",
-        },
-        {
-            "analysis_name": "Absorbed Damage to Reel Assistants",
-            "plot_type": "NumberPlot",
-            "title": "Absorbierter Schaden auf Reel Assistants",
-            "value_column": "absorbed_damage_to_reel_assistants",
-            "value_column_name": "Absorbierter Schaden",
-            "roles": [PlayerRoles.DPS],
-        },
-        {
-            "analysis_name": "Damage Taken from Travelling Flames",
-            "plot_type": "HitCountPlot",
-            "title": "Schaden durch Travelling Flames",
-            "value_column": "hit_count",
-            "value_column_name": "Anzahl",
-            "damage_column": "damage_taken_from_travelling_flames",
-        },
-        {
-            "analysis_name": "Damage Taken from Pay-Line",
-            "plot_type": "HitCountPlot",
-            "title": "Schaden durch Coins",
-            "value_column": "hit_count",
-            "value_column_name": "Anzahl",
-            "damage_column": "damage_taken_from_payline",
+            "name": "Damage Taken from Falling Coins",
+            "analysis": {
+                "type": "damage_taken_from_ability",
+                "ability_id": 460424,
+            },
+            "plot": {
+                "type": "HitCountPlot",
+                "column_key_1": "hit_count",
+                "column_key_2": "damage_taken_from_falling_coins",
+            },
         },
     ]

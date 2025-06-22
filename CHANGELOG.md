@@ -5,57 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-06-27
+
+### Added
+- **Unified Configuration System**: Single CONFIG array replaces separate ANALYSIS_CONFIG and PLOT_CONFIG
+- **Enhanced Column System**: Support for up to 5 data columns with configurable headers
+- **Test Output Management**: Isolated test environment with plots/cache/logs in tests/ directory
+- **Wipe Cutoff Configuration**: Configurable wipe_cutoff parameter for analysis types
+- **Example Boss Testing**: Comprehensive test coverage for all analysis and plot variations
+
+### Changed
+- **BREAKING**: Migrated from ANALYSIS_CONFIG/PLOT_CONFIG to unified CONFIG structure
+- **Environment Variables**: Simplified .env format (CLIENT_ID, REDIRECT_URI instead of WOW_ prefixes)
+- **Column Configuration**: New column_key_1/column_header_1 system replaces value_column/value_column_name
+- **Plot Generation**: Enhanced plot parameter handling with flexible column system
+- **Analysis Architecture**: Improved type handling and GraphQL parameter consistency
+
+### Fixed
+- **Documentation Cleanup**: Removed outdated plots/README.md file
+- **Type Consistency**: Standardized ability_id parameters as float values in GraphQL queries
+- **Configuration Migration**: Updated all boss analyses to use unified CONFIG format
+
+### Technical Details
+- CONFIG entries combine analysis and plot configurations in single objects
+- Automatic result key generation from analysis names using snake_case conversion
+- Test isolation prevents output files from mixing with production data
+- Enhanced documentation in CLAUDE.md with comprehensive testing guidelines
+- Support for complex filter expressions and role-based analysis configurations
+
 ## [2.1.0] - 2025-06-22
 
 ### Added
 - **Totals Row Feature**: Added configurable totals/averages row at bottom of all plots
 - **Smart Totals Calculation**: NumberPlot shows sum totals, PercentagePlot shows averages
-- **Dynamic Labels**: "Total" for number plots, "Average" for percentage plots
-- **Change Indicators**: Totals row displays change from previous data with color coding
-- **Comprehensive Tests**: Added 14 new tests covering all totals functionality
-- **Visual Separator**: Red line above totals row for clear visual distinction
 - **Role-based Filtering**: Added role filtering system for analyses and plots
-- **Role Constants**: Added PlayerRoles class with TANK, HEALER, DPS constants
-- **Enhanced GraphQL Queries**: Improved query structure and empty data validation
 - **HitCountPlot**: New specialized plot type for displaying hit count data with damage values
 - **Damage Taken Analysis**: Added `damage_taken_from_ability` analysis type using GraphQL DamageTaken queries
-- **Hit Count Metrics**: Support for both hit count and total damage data from API responses
-- **Dual Column Display**: HitCountPlot shows hit count as primary metric with damage in separate column
 
 ### Changed
-- **Plot Layout**: Adjusted spacing and positioning for optimal totals row integration
-- **Figure Height**: Automatically accounts for totals row in plot dimensions
-- **Type Support**: Enhanced change calculation to handle numpy numeric types
-- **Method Signatures**: Cleaned up unused parameters in totals-related methods
 - **Duration-based Calculations**: Replaced fight count dependencies with total fight duration metrics
-- **Change Calculations**: Enhanced precision for duration-based change calculations with scaled formatting
 - **Analysis Architecture**: Updated base analysis to support role filtering in configurations
-- **Plot System**: Streamlined to use exclusively duration-based metrics for more accurate comparisons
 - **GraphQL Parameters**: Fixed ability ID parameter type from Int! to Float! for damage taken queries
-- **One-Armed Bandit Config**: Updated to use HitCountPlot for damage taken analyses
 
 ### Fixed
 - **Change Calculation**: Fixed "N/A" issue for NumberPlot totals (numpy type handling)
-- **Plot Spacing**: Eliminated gaps between header/data rows and data rows/totals
-- **Title Positioning**: Optimized spacing between title/subtitle and header row
-- **Duration Tracking**: Eliminated fight count parameters throughout plotting system
-- **Test Suite**: Updated all tests to use duration parameters instead of fight counts
 - **Duplicate Player Handling**: Fixed value doubling for players who switch roles between attempts
 - **HitCountPlot Layout**: Fixed damage column positioning to appear right of value bar instead of overlapping
-
-### Technical Details
-- Totals row enabled by default with `show_totals=True` parameter
-- No value bar displayed in totals row for cleaner appearance
-- Proper handling of missing previous data (returns 0 for NumberPlot, None for PercentagePlot)
-- Added regression tests for numpy type compatibility
-- Role filtering applies to both analysis data collection and plot generation
-- Duration-based change calculations provide per-minute rate comparisons
-- Enhanced change formatting with 3 decimal places for small values
-- Comprehensive test coverage for role filtering functionality
-- HitCountPlot uses maximum values instead of sum for duplicate player handling
-- Damage taken queries use dataType: DamageTaken with abilityID parameter
-- HitCountPlot inherits from BaseTablePlot with minimal method overrides
-- Custom 5-column layout for HitCountPlot: Name, Hit Count Value, Hit Count Bar, Damage, Change
 
 ## [2.0.0] - 2025-06-15
 

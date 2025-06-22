@@ -84,8 +84,8 @@ class TestBaseTablePlot:
         assert plot.title == "Test Plot"
         assert plot.date == "2023-01-01"
         assert len(plot.df) == 2
-        assert plot.value_column == "value"
-        assert plot.value_column_name == "Value"
+        assert plot.column_key_1 == "value"
+        assert plot.column_header_1 == ""
 
     def test_init_with_all_parameters(self):
         """Test BaseTablePlot initialization with all parameters."""
@@ -97,15 +97,15 @@ class TestBaseTablePlot:
             date="2023-01-01",
             df=df,
             previous_data=previous_data,
-            value_column="damage",
-            value_column_name="Damage Done",
+            column_key_1="damage",
+            column_header_1="Damage Done",
             current_fight_duration=300000,
             previous_fight_duration=250000,
         )
 
         assert plot.title == "Damage Plot"
-        assert plot.value_column == "damage"
-        assert plot.value_column_name == "Damage Done"
+        assert plot.column_key_1 == "damage"
+        assert plot.column_header_1 == "Damage Done"
         assert plot.current_fight_duration == 300000
         assert plot.previous_fight_duration == 250000
 
@@ -459,15 +459,16 @@ class TestTotalsRowFunctionality:
         df = pd.DataFrame({"player_name": ["Player1"], "value": [100]})
         plot = NumberPlot("Test", "2023-01-01", df, show_totals=True)
 
-        # Mock the required parameters - need all 4 columns like the real plot
+        # Mock the required parameters - need all 5 columns like the real plot
         mock_ax = Mock()
         columns = [
             {"name": "Name", "width": 2.0},
             {"name": "", "width": 1.5},
             {"name": "Value", "width": 6.5},
+            {"name": "", "width": 1.0},
             {"name": "Change", "width": 2.0},
         ]
-        col_positions = [0.2, 2.2, 3.7, 10.2]
+        col_positions = [0.2, 2.2, 3.7, 10.2, 11.2]
         row_height = 0.6
 
         # Should not raise an error with correct parameters

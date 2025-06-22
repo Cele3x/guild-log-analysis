@@ -166,8 +166,10 @@ def main() -> None:
     # Example report codes (replace with actual ones)
     report_codes = [
         # "GzqYMJW3hFHXVdxT",  # 12.06.
-        "BTYHxq1QC6wdVjrv",  # 15.06.
-        "29ykfGtYXWw6Zngb",  # 19.06.
+        # "BTYHxq1QC6wdVjrv",  # 15.06.
+        # "29ykfGtYXWw6Zngb",  # 19.06.
+        "jYAM7vCZ3PmzGNWg",
+        "XHwhTRPpgqrMvj6m",  # 26.06.
     ]
 
     try:

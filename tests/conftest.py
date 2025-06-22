@@ -5,11 +5,19 @@ This module provides common test fixtures and configuration
 used across all test modules.
 """
 
+import os
 from unittest.mock import Mock
 
 import pytest
 
 from src.guild_log_analysis.api import WarcraftLogsAPIClient
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_test_environment():
+    """Configure test environment variables."""
+    # Set output directory for tests to keep plots in tests folder
+    os.environ["OUTPUT_DIRECTORY"] = "tests"
 
 
 @pytest.fixture
@@ -525,10 +533,10 @@ def mock_registry_boss():
         PLOT_CONFIG = [
             {
                 "analysis_name": "Mock Analysis",
-                "plot_type": "NumberPlot",
+                "type": "NumberPlot",
                 "title": "Mock Plot",
-                "value_column": "test_value",
-                "value_column_name": "Test",
+                "column_key_1": "test_value",
+                "column_header_1": "Test",
             }
         ]
 

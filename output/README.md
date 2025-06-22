@@ -1,6 +1,6 @@
-# Plots Directory
+# Output Directory
 
-This directory contains generated plot images from the analysis. The registry-based system automatically generates plots for all registered boss analyses.
+This directory contains generated plot images and analysis output. The registry-based system automatically generates plots for all registered boss analyses.
 
 ## Plot Types
 
@@ -31,7 +31,7 @@ Plots are automatically generated with date prefix and descriptive names:
 
 Plots are automatically generated through the registry-based system:
 
-1. **Automatic Plot Creation**: Each boss analysis defines `PLOT_CONFIG`
+1. **Unified Configuration**: Each boss analysis defines a single `CONFIG` with both analysis and plot settings
 2. **Consistent Styling**: All plots use the same base styling and color schemes
 3. **Format Configuration**: Plot DPI and format can be configured:
    ```python
@@ -41,16 +41,34 @@ Plots are automatically generated through the registry-based system:
 
 ## Adding New Plot Types
 
-New boss analyses automatically generate plots based on their `PLOT_CONFIG`:
+New boss analyses automatically generate plots based on their unified `CONFIG`:
 
 ```python
-PLOT_CONFIG = [
+CONFIG = [
     {
-        "analysis_name": "Boss Interrupts",
-        "plot_type": "NumberPlot",  # or "PercentagePlot"
-        "title": "Boss Interrupts",
-        "value_column": "interrupts",
-        "value_column_name": "Count",
+        "name": "Boss Interrupts",
+        "analysis": {
+            "type": "interrupts",
+            "ability_id": 12345,
+        },
+        "plot": {
+            "type": "NumberPlot",  # or "PercentagePlot", "HitCountPlot"
+            "title": "Boss Interrupts",
+            "column_key_1": "interrupts",
+            "column_header_1": "Name",      # Optional: Column 1 header (defaults to "Name")
+            "column_header_2": "Count",     # Optional: Column 2 header
+            "column_header_3": "Details",   # Optional: Column 3 header (for bar visualization)
+        }
     }
 ]
 ```
+
+### Column Header System
+
+The plotting system supports up to 3 columns with optional headers:
+
+- **column_header_1**: Name column header (defaults to "Name" if not specified)
+- **column_header_2**: Value column header (displayed above the numeric value)
+- **column_header_3**: Bar column header (displayed above the visualization bar)
+
+All column headers are optional. If not provided, the column will have no header text.

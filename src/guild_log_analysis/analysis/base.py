@@ -43,8 +43,17 @@ class BossAnalysisBase(ABC):
         self.results: list[dict[str, Any]] = []
 
         # Configuration attributes for registry-based system
-        self.ANALYSIS_CONFIG: list[dict[str, Any]] = getattr(self, "ANALYSIS_CONFIG", [])
-        self.PLOT_CONFIG: list[dict[str, Any]] = getattr(self, "PLOT_CONFIG", [])
+        self.CONFIG: list[dict[str, Any]] = getattr(self, "CONFIG", [])
+
+    @staticmethod
+    def _name_to_key(name: str) -> str:
+        """Convert analysis name to snake_case result key."""
+        import re
+
+        # Remove special characters and replace with spaces, then convert to snake_case
+        cleaned = re.sub(r"[^\w\s]", " ", name)  # Replace non-alphanumeric with spaces
+        cleaned = re.sub(r"\s+", "_", cleaned.strip())  # Replace multiple spaces with single underscore
+        return cleaned.lower()
 
     def analyze(self, report_codes: list[str]) -> None:
         """
@@ -52,8 +61,8 @@ class BossAnalysisBase(ABC):
 
         :param report_codes: List of Warcraft Logs report codes to analyze
         """
-        if self.ANALYSIS_CONFIG:
-            # Use configuration-based analysis
+        if self.CONFIG:
+            # Use unified configuration-based analysis
             self._analyze_generic(report_codes)
         else:
             # Fall back to legacy analyze method
@@ -67,7 +76,7 @@ class BossAnalysisBase(ABC):
 
         :param report_codes: List of Warcraft Logs report codes to analyze
         """
-        raise NotImplementedError("Either implement ANALYSIS_CONFIG or override _analyze_legacy")
+        raise NotImplementedError("Either implement CONFIG or override _analyze_legacy")
 
     def _analyze_generic(self, report_codes: list[str]) -> None:
         """
@@ -118,10 +127,19 @@ class BossAnalysisBase(ABC):
             return
 
         # Execute all configured analyses
-        for config in self.ANALYSIS_CONFIG:
+        for config in self.CONFIG:
             try:
-                data = self._execute_analysis(config, report_code, fight_ids, report_players)
-                report_results["analysis"].append({"name": config["name"], "data": data})
+                # Extract analysis config from unified CONFIG
+                analysis_config = {
+                    "name": config["name"],
+                    "result_key": self._name_to_key(config["name"]),
+                    **config["analysis"],
+                }
+                if "roles" in config:
+                    analysis_config["roles"] = config["roles"]
+
+                data = self._execute_analysis(analysis_config, report_code, fight_ids, report_players)
+                report_results["analysis"].append({"name": analysis_config["name"], "data": data})
             except Exception as e:
                 logger.error(f"Error executing analysis {config['name']}: {e}")
                 continue
@@ -152,6 +170,7 @@ class BossAnalysisBase(ABC):
                 fight_ids=fight_ids,
                 report_players=filtered_players,
                 ability_id=config["ability_id"],
+                wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
             )
         elif analysis_type == "debuff_uptime":
             data = self.analyze_debuff_uptime(
@@ -497,7 +516,7 @@ class BossAnalysisBase(ABC):
         :param target_game_id: The game ID of the target actor (e.g., 231027 for Premium Dynamite Booty)
         :param report_players: List of players who participated in the fights
         :param filter_expression: Optional expression to filter the report data
-        :param wipe_cutoff: Threshold for considering fights as wipes
+        :param wipe_cutoff: Stop counting events after this many players have died
         :return: List of player data with damage values
         """
         # Step 1: Get all actors to find target IDs
@@ -640,6 +659,7 @@ class BossAnalysisBase(ABC):
         fight_ids: set[int],
         report_players: list[dict[str, Any]],
         ability_id: float,
+        wipe_cutoff: Optional[int] = DEFAULT_WIPE_CUTOFF,
     ) -> list[dict[str, Any]]:
         """
         Analyze interrupt events for a specific ability.
@@ -648,6 +668,7 @@ class BossAnalysisBase(ABC):
         :param fight_ids: Set of fight IDs to analyze
         :param report_players: List of players who participated in the fights
         :param ability_id: The ability ID to track interrupts for
+        :param wipe_cutoff: Stop counting events after this many players have died
         :return: List of player data with interrupt counts
         """
         events = []
@@ -655,7 +676,10 @@ class BossAnalysisBase(ABC):
 
         # Get interrupt events
         query = """
-        query GetInterrupts($reportCode: String!, $fightIds: [Int!]!, $abilityId: Float!, $startTime: Float) {
+        query GetInterrupts(
+            $reportCode: String!, $fightIds: [Int!]!, $abilityId: Float!,
+            $startTime: Float, $wipeCutoff: Int
+        ) {
           reportData {
             report(code: $reportCode) {
               events(
@@ -663,6 +687,8 @@ class BossAnalysisBase(ABC):
                 fightIDs: $fightIds
                 abilityID: $abilityId
                 startTime: $startTime
+                killType: Wipes
+                wipeCutoff: $wipeCutoff
               ) {
                 data
                 nextPageTimestamp
@@ -677,8 +703,9 @@ class BossAnalysisBase(ABC):
             variables = {
                 "reportCode": report_code,
                 "fightIds": list(fight_ids),
-                "abilityId": ability_id,
+                "abilityId": float(ability_id),
                 "startTime": next_timestamp,  # None for first page, timestamp for subsequent pages
+                "wipeCutoff": wipe_cutoff,
             }
 
             result = self.api_client.make_request(query, variables)
@@ -750,7 +777,7 @@ class BossAnalysisBase(ABC):
         :param fight_ids: Set of fight IDs to analyze
         :param report_players: List of players who participated in the fights
         :param ability_id: The ability ID to track debuff uptime for
-        :param wipe_cutoff: Threshold for considering fights as wipes
+        :param wipe_cutoff: Stop counting events after this many players have died
         :param filter_expression: Optional expression to filter the report data
         :return: List of player data with debuff uptime percentages
         """
@@ -780,7 +807,7 @@ class BossAnalysisBase(ABC):
         variables = {
             "reportCode": report_code,
             "fightIDs": list(fight_ids),
-            "abilityID": ability_id,
+            "abilityID": float(ability_id),
             "filterExpression": filter_expression,
             "encounterID": self.encounter_id,
             "difficulty": self.difficulty,
@@ -915,7 +942,7 @@ class BossAnalysisBase(ABC):
         :param fight_ids: Set of fight IDs to analyze
         :param report_players: List of players who participated in the fights
         :param ability_id: The ability ID to track damage taken from (float)
-        :param wipe_cutoff: Threshold for considering fights as wipes
+        :param wipe_cutoff: Stop counting events after this many players have died
         :param filter_expression: Optional expression to filter the report data
         :return: List of player data with damage taken amounts
         """
@@ -944,7 +971,7 @@ class BossAnalysisBase(ABC):
         variables = {
             "reportCode": report_code,
             "fightIDs": list(fight_ids),
-            "abilityID": ability_id,
+            "abilityID": float(ability_id),
             "filterExpression": filter_expression,
             "encounterID": self.encounter_id,
             "difficulty": self.difficulty,
@@ -1027,7 +1054,7 @@ class BossAnalysisBase(ABC):
 
     def generate_plots(self) -> None:
         """Generate plots using configuration."""
-        if self.PLOT_CONFIG:
+        if self.CONFIG:
             self._generate_plots_generic()
         else:
             self._generate_plots_legacy()
@@ -1038,7 +1065,7 @@ class BossAnalysisBase(ABC):
 
         Override this in subclasses that don't use configuration.
         """
-        raise NotImplementedError("Either implement PLOT_CONFIG or override _generate_plots_legacy")
+        raise NotImplementedError("Either implement CONFIG or override _generate_plots_legacy")
 
     def _generate_plots_generic(self) -> None:
         """Generate plots using configuration."""
@@ -1062,11 +1089,21 @@ class BossAnalysisBase(ABC):
             previous_fight_duration = sorted_reports[1].get("total_duration")
 
         # Generate plots based on configuration
-        for plot_config in self.PLOT_CONFIG:
+        for config in self.CONFIG:
             try:
+                # Extract plot config from unified CONFIG
+                plot_config = {
+                    "analysis_name": config["name"],
+                    "title": config["plot"].get("title", config["name"]),
+                    **{k: v for k, v in config["plot"].items() if k != "title"},
+                }
+                if "roles" in config:
+                    plot_config["roles"] = config["roles"]
+
                 self._generate_single_plot(plot_config, report_date, current_fight_duration, previous_fight_duration)
             except Exception as e:
-                logger.error(f"Error generating plot {plot_config.get('title', 'Unknown')}: {e}")
+                title = config.get("title") or config.get("name", "Unknown")
+                logger.error(f"Error generating plot {title}: {e}")
                 continue
 
     def _generate_single_plot(
@@ -1085,15 +1122,24 @@ class BossAnalysisBase(ABC):
         :param previous_fight_duration: Total duration of previous fights in milliseconds
         """
         analysis_name = plot_config["analysis_name"]
-        plot_type = plot_config["plot_type"]
+        plot_type = plot_config["type"]
         title = plot_config["title"]
-        value_column = plot_config["value_column"]
-        value_column_name = plot_config["value_column_name"]
+
+        # Column configuration with support for up to 5 columns
+        column_key_1 = plot_config["column_key_1"]
+        column_header_1 = plot_config.get("column_header_1", "")
+        column_key_2 = plot_config.get("column_key_2")
+        column_header_2 = plot_config.get("column_header_2", "")
+        column_key_3 = plot_config.get("column_key_3")
+        column_header_3 = plot_config.get("column_header_3", "")
+        column_header_4 = plot_config.get("column_header_4", "")
+        column_header_5 = plot_config.get("column_header_5", "")
+
         name_column = plot_config.get("name_column", "player_name")
         class_column = plot_config.get("class_column", "class")
 
         # Get analysis data
-        current_data, previous_dict = self.find_analysis_data(analysis_name, value_column, name_column)
+        current_data, previous_dict = self.find_analysis_data(analysis_name, column_key_1, name_column)
 
         # Apply role filtering to plot data if specified
         plot_roles = plot_config.get("roles", [])
@@ -1116,8 +1162,14 @@ class BossAnalysisBase(ABC):
                 date=report_date,
                 df=df,
                 previous_data=previous_dict,
-                value_column=value_column,
-                value_column_name=value_column_name,
+                column_key_1=column_key_1,
+                column_header_1=column_header_1,
+                column_key_2=column_key_2,
+                column_header_2=column_header_2,
+                column_key_3=column_key_3,
+                column_header_3=column_header_3,
+                column_header_4=column_header_4,
+                column_header_5=column_header_5,
                 name_column=name_column,
                 class_column=class_column,
                 current_fight_duration=current_fight_duration,
@@ -1129,8 +1181,14 @@ class BossAnalysisBase(ABC):
                 date=report_date,
                 df=df,
                 previous_data=previous_dict,
-                value_column=value_column,
-                value_column_name=value_column_name,
+                column_key_1=column_key_1,
+                column_header_1=column_header_1,
+                column_key_2=column_key_2,
+                column_header_2=column_header_2,
+                column_key_3=column_key_3,
+                column_header_3=column_header_3,
+                column_header_4=column_header_4,
+                column_header_5=column_header_5,
                 name_column=name_column,
                 class_column=class_column,
                 current_fight_duration=current_fight_duration,
@@ -1142,9 +1200,14 @@ class BossAnalysisBase(ABC):
                 date=report_date,
                 df=df,
                 previous_data=previous_dict,
-                value_column=value_column,
-                value_column_name=value_column_name,
-                damage_column=plot_config.get("damage_column", "damage_taken"),
+                column_key_1=column_key_1,
+                column_header_1=column_header_1,
+                column_key_2=column_key_2,
+                column_header_2=column_header_2,
+                column_key_3=column_key_3,
+                column_header_3=column_header_3,
+                column_header_4=column_header_4,
+                column_header_5=column_header_5,
                 name_column=name_column,
                 class_column=class_column,
                 current_fight_duration=current_fight_duration,

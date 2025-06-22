@@ -97,11 +97,21 @@ python -m pytest tests/unit/        # Unit tests only
 python -m pytest tests/integration/ # Integration tests only
 ```
 
+#### Test Output Management
+
+Tests are configured to save all output (plots, logs, cache) to the `tests/` directory to keep them separate from production data:
+
+- **Test plots**: Saved to `tests/plots/` instead of root `plots/`
+- **Test cache**: Uses `tests/cache/`
+- **Test logs**: Written to `tests/logs/`
+
+This separation is achieved through the `configure_test_environment` fixture in `tests/conftest.py` which sets `OUTPUT_DIRECTORY=tests` for all test runs.
+
 ### Environment Configuration
 The application requires a `.env` file with Warcraft Logs API credentials:
 ```
-WOW_CLIENT_ID=your_client_id
-WOW_REDIRECT_URI=http://localhost:8080/callback
+CLIENT_ID=your_client_id
+REDIRECT_URI=http://localhost:8080/callback
 ```
 
 ## Architecture Overview
@@ -127,8 +137,74 @@ WOW_REDIRECT_URI=http://localhost:8080/callback
 Create new file in `src/guild_log_analysis/analysis/bosses/new_boss.py`:
 - Inherit from `BossAnalysisBase`
 - Set `boss_name`, `encounter_id`, and `difficulty` attributes
-- Implement `analyze(report_codes)` method
+- Define `CONFIG` with unified analysis and plot configurations
 - Add corresponding method to `GuildLogAnalyzer` class
+
+#### Analysis and Plot Type Variations
+
+**CRITICAL**: When adding new analysis or plot types to the system, you MUST update both the example boss configuration AND the corresponding tests to maintain comprehensive coverage.
+
+The `ExampleBossAnalysis` serves as the canonical reference for all available analysis and plot types. Any new variation must be:
+
+1. **Added to `example_boss.py` CONFIG**: Include a representative configuration demonstrating the new type
+2. **Added to `test_example_boss.py`**: Create specific tests for the new variation
+
+#### Testing Policy
+
+**DO NOT create boss-specific tests.** Only the `ExampleBossAnalysis` should have comprehensive tests in `test_example_boss.py`. This approach:
+
+- Tests all analysis and plot type variations generically
+- Avoids testing dynamic content from specific boss encounters
+- Ensures configuration system functionality without relying on external API data
+- Maintains test stability and performance
+
+Specific boss implementations (like `OneArmedBanditAnalysis`) should only be tested for:
+- Basic initialization
+- Registry registration
+- Configuration structure validation
+
+All functional testing of analysis types, plot types, and role variations should be done through the example boss tests.
+
+**Current Analysis Types** (all must be represented in example boss):
+- `interrupts`: Boss interrupt tracking
+- `debuff_uptime`: Debuff duration tracking
+- `damage_to_actor`: Damage/healing to specific targets
+- `damage_taken_from_ability`: Damage received from abilities
+- `damage_to_actor` with `filter_expression`: Filtered damage tracking
+
+**Current Plot Types** (all must be represented in example boss):
+- `NumberPlot`: Simple numeric displays
+- `PercentagePlot`: Percentage-based plots
+- `HitCountPlot`: Hit count with damage tracking
+
+**Plot Column Configuration**:
+- `column_key_1`: Primary data column (required)
+- `column_header_1`: Primary column header (optional, defaults to blank)
+- `column_key_2`: Secondary data column (optional, for HitCountPlot)
+- `column_header_2`: Secondary column header (optional, defaults to blank)
+- `type`: Plot type specification (e.g., `"NumberPlot"`)
+
+**Note**: The column key system supports up to 3 data columns: Name, Column 1, Column 2, plus Change. All headers default to blank if not specified.
+
+**Current Role Variations** (all must be represented in example boss):
+- DPS only: `[PlayerRoles.DPS]`
+- Healers only: `[PlayerRoles.HEALER]`
+- Tanks only: `[PlayerRoles.TANK]`
+- Tanks + DPS: `[PlayerRoles.TANK, PlayerRoles.DPS]`
+- All roles: No `roles` field
+
+#### Example Boss Testing Requirements
+
+The `test_example_boss.py` file must contain tests for:
+- Each analysis type with proper configuration validation
+- Each plot type with proper configuration validation
+- Each role variation
+- Result key auto-generation from names
+- Custom vs. auto-generated plot titles
+- Filter expressions where applicable
+- Configuration consistency between analysis and plots
+
+This ensures that generic functionality can be tested without relying on dynamic content from specific boss encounters.
 
 ### Configuration System
 
