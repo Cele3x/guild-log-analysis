@@ -1,5 +1,6 @@
 """One-Armed Bandit boss analysis for Liberation of Undermine."""
 
+from ...config.constants import PlayerRoles
 from ..base import BossAnalysisBase
 from ..registry import register_boss
 
@@ -32,12 +33,14 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "type": "damage_to_actor",
             "target_game_id": 231027,
             "result_key": "damage_to_dynamite_booties",
+            "roles": [PlayerRoles.DPS],
         },
         {
             "name": "Reel Assistants Damage",
             "type": "damage_to_actor",
             "target_game_id": 228463,
             "result_key": "damage_to_reel_assistants",
+            "roles": [PlayerRoles.DPS],
         },
         {
             "name": "Boss Damage",
@@ -51,6 +54,7 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "target_game_id": 228463,
             "result_key": "absorbed_damage_to_reel_assistants",
             "filter_expression": "absorbedDamage > 0",
+            "roles": [PlayerRoles.DPS],
         },
     ]
 
@@ -69,6 +73,7 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "title": "High Roller Uptime",
             "value_column": "uptime_percentage",
             "value_column_name": "Uptime",
+            # No roles = all roles
         },
         {
             "analysis_name": "Premium Dynamite Booties Damage",
@@ -76,6 +81,7 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "title": "Schaden auf Geschenke",
             "value_column": "damage_to_dynamite_booties",
             "value_column_name": "Schaden",
+            "roles": [PlayerRoles.DPS],
         },
         {
             "analysis_name": "Reel Assistants Damage",
@@ -83,6 +89,7 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "title": "Schaden auf Reel Assistants",
             "value_column": "damage_to_reel_assistants",
             "value_column_name": "Schaden",
+            "roles": [PlayerRoles.DPS],
         },
         {
             "analysis_name": "Boss Damage",
@@ -97,5 +104,6 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
             "title": "Absorbierter Schaden auf Reel Assistants",
             "value_column": "absorbed_damage_to_reel_assistants",
             "value_column_name": "Absorbierter Schaden",
+            "roles": [PlayerRoles.DPS],
         },
     ]

@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF
+from ..utils.helpers import filter_players_by_roles
 
 logger = logging.getLogger(__name__)
 
@@ -96,11 +97,15 @@ class BossAnalysisBase(ABC):
         # Get timestamp of first fight
         start_time = self.get_start_time(report_code, fight_ids)
 
+        # Get total fight duration
+        total_duration = self.get_total_fight_duration(report_code, fight_ids)
+
         report_results = {
             "starttime": start_time,
             "reportCode": report_code,
             "analysis": [],
             "fight_ids": fight_ids,
+            "total_duration": total_duration,
         }
 
         # Get players who participated in these specific fights
@@ -132,20 +137,23 @@ class BossAnalysisBase(ABC):
         :param report_players: List of players who participated in the fights
         :return: Analysis results data
         """
+        # Apply role filtering if specified
+        filtered_players = self._filter_players_by_roles(report_players, config.get("roles", []))
+
         analysis_type = config["type"]
 
         if analysis_type == "interrupts":
             data = self.analyze_interrupts(
                 report_code=report_code,
                 fight_ids=fight_ids,
-                report_players=report_players,
+                report_players=filtered_players,
                 ability_id=config["ability_id"],
             )
         elif analysis_type == "debuff_uptime":
             data = self.analyze_debuff_uptime(
                 report_code=report_code,
                 fight_ids=fight_ids,
-                report_players=report_players,
+                report_players=filtered_players,
                 ability_id=config["ability_id"],
                 wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
                 filter_expression=config.get("filter_expression"),
@@ -155,7 +163,7 @@ class BossAnalysisBase(ABC):
                 report_code=report_code,
                 fight_ids=fight_ids,
                 target_game_id=config["target_game_id"],
-                report_players=report_players,
+                report_players=filtered_players,
                 filter_expression=config.get("filter_expression"),
                 wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
             )
@@ -167,6 +175,16 @@ class BossAnalysisBase(ABC):
             raise ValueError(f"Unknown analysis type: {analysis_type}")
 
         return data
+
+    def _filter_players_by_roles(self, players: list[dict[str, Any]], roles: list[str]) -> list[dict[str, Any]]:
+        """
+        Filter players by specified roles.
+
+        :param players: List of player dictionaries
+        :param roles: List of role names to include (empty list means all roles)
+        :return: Filtered list of players
+        """
+        return filter_players_by_roles(players, roles)
 
     def get_fight_ids(self, report_code: str) -> Optional[set[int]]:
         """
@@ -895,14 +913,17 @@ class BossAnalysisBase(ABC):
 
         report_date = datetime.fromtimestamp(latest_report["starttime"]).strftime("%d.%m.%Y")
 
-        # Get fight counts for current and previous reports
-        current_fight_count = len(latest_report.get("fight_ids", []))
-        previous_fight_count = len(sorted_reports[1].get("fight_ids", [])) if len(sorted_reports) > 1 else None
+        # Get fight durations for current and previous reports
+        current_fight_duration = latest_report.get("total_duration")
+
+        previous_fight_duration = None
+        if len(sorted_reports) > 1:
+            previous_fight_duration = sorted_reports[1].get("total_duration")
 
         # Generate plots based on configuration
         for plot_config in self.PLOT_CONFIG:
             try:
-                self._generate_single_plot(plot_config, report_date, current_fight_count, previous_fight_count)
+                self._generate_single_plot(plot_config, report_date, current_fight_duration, previous_fight_duration)
             except Exception as e:
                 logger.error(f"Error generating plot {plot_config.get('title', 'Unknown')}: {e}")
                 continue
@@ -911,16 +932,16 @@ class BossAnalysisBase(ABC):
         self,
         plot_config: dict[str, Any],
         report_date: str,
-        current_fight_count: int,
-        previous_fight_count: Optional[int],
+        current_fight_duration: Optional[int],
+        previous_fight_duration: Optional[int],
     ) -> None:
         """
         Generate a single plot based on configuration.
 
         :param plot_config: Plot configuration dictionary
         :param report_date: Date string for the report
-        :param current_fight_count: Number of fights in current report
-        :param previous_fight_count: Number of fights in previous report
+        :param current_fight_duration: Total duration of current fights in milliseconds
+        :param previous_fight_duration: Total duration of previous fights in milliseconds
         """
         import pandas as pd
 
@@ -937,6 +958,18 @@ class BossAnalysisBase(ABC):
         # Get analysis data
         current_data, previous_dict = self.find_analysis_data(analysis_name, value_column, name_column)
 
+        # Apply role filtering to plot data if specified
+        plot_roles = plot_config.get("roles", [])
+        if plot_roles:
+            current_data = self._filter_players_by_roles(current_data, plot_roles)
+            # Filter previous data dictionary to only include players from allowed roles
+            filtered_previous_dict = {}
+            for player_data in current_data:
+                player_name = player_data.get(name_column)
+                if player_name and player_name in previous_dict:
+                    filtered_previous_dict[player_name] = previous_dict[player_name]
+            previous_dict = filtered_previous_dict
+
         df = pd.DataFrame(current_data)
 
         # Create appropriate plot type
@@ -950,8 +983,8 @@ class BossAnalysisBase(ABC):
                 value_column_name=value_column_name,
                 name_column=name_column,
                 class_column=class_column,
-                current_fight_count=current_fight_count,
-                previous_fight_count=previous_fight_count,
+                current_fight_duration=current_fight_duration,
+                previous_fight_duration=previous_fight_duration,
             )
         elif plot_type == "PercentagePlot":
             plot = PercentagePlot(
@@ -963,6 +996,8 @@ class BossAnalysisBase(ABC):
                 value_column_name=value_column_name,
                 name_column=name_column,
                 class_column=class_column,
+                current_fight_duration=current_fight_duration,
+                previous_fight_duration=previous_fight_duration,
             )
         else:
             raise ValueError(f"Unknown plot type: {plot_type}")

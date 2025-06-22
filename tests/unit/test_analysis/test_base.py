@@ -472,7 +472,7 @@ class TestConfigurationBasedAnalysis:
         # Test that the method doesn't raise an exception with valid config
         # The actual plotting is tested in plot-specific tests
         try:
-            analysis._generate_single_plot(plot_config, "2023-01-01", 5, 3)
+            analysis._generate_single_plot(plot_config, "2023-01-01", 300000, 250000)
             # If we get here, basic functionality works
             assert True
         except Exception as e:
@@ -501,4 +501,4 @@ class TestConfigurationBasedAnalysis:
         }
 
         with pytest.raises(ValueError, match="Unknown plot type: UnknownPlot"):
-            analysis._generate_single_plot(plot_config, "2023-01-01", 5, 3)
+            analysis._generate_single_plot(plot_config, "2023-01-01", 300000, 250000)

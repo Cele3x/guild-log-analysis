@@ -78,6 +78,17 @@ class ClassColors:
     EVOKER: Final[str] = "#33937F"
 
 
+# Player Roles
+class PlayerRoles:
+    """Player role constants for filtering analyses."""
+
+    TANK: Final[str] = "tank"
+    HEALER: Final[str] = "healer"
+    DPS: Final[str] = "dps"
+
+    ALL_ROLES: Final[list[str]] = [TANK, HEALER, DPS]
+
+
 # Plot Colors
 class PlotColors:
     """Essential color definitions for plots."""

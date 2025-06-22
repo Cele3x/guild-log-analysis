@@ -40,8 +40,8 @@ class BaseTablePlot(ABC):
         value_column_name: Optional[str] = None,
         name_column: str = "player_name",
         class_column: Optional[str] = "class",
-        current_fight_count: Optional[int] = None,
-        previous_fight_count: Optional[int] = None,
+        current_fight_duration: Optional[int] = None,
+        previous_fight_duration: Optional[int] = None,
         show_totals: bool = True,
     ) -> None:
         """
@@ -55,8 +55,8 @@ class BaseTablePlot(ABC):
         :param value_column_name: Display name for the value column
         :param name_column: Name of the column containing player/item names
         :param class_column: Name of the column containing class information
-        :param current_fight_count: Current fight count
-        :param previous_fight_count: Previous fight count
+        :param current_fight_duration: Current total fight duration in milliseconds
+        :param previous_fight_duration: Previous total fight duration in milliseconds
         :param show_totals: Whether to show totals row at bottom
         """
         self.title = title
@@ -67,8 +67,8 @@ class BaseTablePlot(ABC):
         self.value_column_name = value_column_name or value_column.title()
         self.name_column = name_column
         self.class_column = class_column
-        self.current_fight_count = current_fight_count
-        self.previous_fight_count = previous_fight_count
+        self.current_fight_duration = current_fight_duration
+        self.previous_fight_duration = previous_fight_duration
         self.show_totals = show_totals
 
         self._setup_plot_style()
@@ -157,14 +157,27 @@ class BaseTablePlot(ABC):
                     change = current - previous
                     change = round(change, 2)
                 else:
-                    # For number plots, calculate relative change per fight
-                    if isinstance(self, NumberPlot) and self.current_fight_count and self.previous_fight_count:
-                        # Calculate average per fight
-                        current_avg = current / self.current_fight_count
-                        previous_avg = previous / self.previous_fight_count
-                        # Calculate relative change
-                        change = float(current_avg - previous_avg)
-                        formatted_change = format_number(change, 0) if abs(change) > 100 else format_number(change)
+                    # For number plots, calculate total change relative to duration
+                    if isinstance(self, NumberPlot) and self.current_fight_duration and self.previous_fight_duration:
+                        # Calculate rates per minute (duration is in milliseconds)
+                        current_rate = current / (self.current_fight_duration / 60000)
+                        previous_rate = previous / (self.previous_fight_duration / 60000)
+
+                        # Scale the rate difference to show meaningful change values
+                        # Use the current duration as the baseline for scaling
+                        rate_difference = current_rate - previous_rate
+                        change = float(rate_difference * (self.current_fight_duration / 60000))
+                        # Format duration-based changes (per minute rates)
+                        if abs(change) > 100:
+                            formatted_change = format_number(change, 0)
+                        elif abs(change) > 10:
+                            formatted_change = format_number(change, 1)
+                        elif abs(change) > 1:
+                            formatted_change = format_number(change, 2)
+                        else:
+                            # For small changes, use 3 decimal places
+                            formatted_change = format_number(change, 3)
+
                         # Add "+" prefix if positive and doesn't already have a sign
                         if change > 0 and not formatted_change.startswith(("+", "-")):
                             formatted_change = f"+ {formatted_change}"
