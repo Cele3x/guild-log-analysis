@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from ..config import DEFAULT_DPI, HEADER_FONT, NAME_FONT, TITLE_FONT, PlotColors
@@ -147,8 +148,6 @@ class BaseTablePlot(ABC):
 
         try:
             # Check for numeric types including numpy types
-            import numpy as np
-
             if isinstance(current, (int, float, np.integer, np.floating)) and isinstance(
                 previous, (int, float, np.integer, np.floating)
             ):

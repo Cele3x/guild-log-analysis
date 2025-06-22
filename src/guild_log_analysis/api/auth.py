@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Optional
 
+import requests
+
 from ..config import ErrorMessages
 from ..config.settings import Settings
 from .exceptions import AuthenticationError
@@ -246,8 +248,6 @@ class OAuthAuthenticator:
         :returns: Token information
         :raises AuthenticationError: If token exchange fails
         """
-        import requests
-
         settings = Settings()
         data = {
             "grant_type": "authorization_code",

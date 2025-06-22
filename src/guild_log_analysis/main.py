@@ -5,9 +5,14 @@ This module provides a simple interface for analyzing guild logs
 without complex logic implementation.
 """
 
+import importlib
 import logging
+import pkgutil
 from typing import Any
 
+from . import analysis
+from .analysis.bosses.one_armed_bandit import OneArmedBanditAnalysis
+from .analysis.registry import get_registered_bosses
 from .api.auth import get_access_token
 from .api.client import WarcraftLogsAPIClient
 from .config.logging_config import setup_logging
@@ -47,8 +52,6 @@ class GuildLogAnalyzer:
 
     def _register_boss_analyses(self) -> None:
         """Automatically register all boss analysis classes from the registry."""
-        from .analysis.registry import get_registered_bosses
-
         # Import all boss modules to ensure they're registered
         self._import_boss_modules()
 
@@ -70,11 +73,6 @@ class GuildLogAnalyzer:
 
     def _import_boss_modules(self) -> None:
         """Import all boss analysis modules to ensure they're registered."""
-        import importlib
-        import pkgutil
-
-        from . import analysis
-
         # Import the bosses package
         bosses_package = f"{analysis.__name__}.bosses"
 
@@ -143,8 +141,6 @@ class GuildLogAnalyzer:
 
         :param report_codes: List of Warcraft Logs report codes to analyze
         """
-        from .analysis.bosses.one_armed_bandit import OneArmedBanditAnalysis
-
         analysis = OneArmedBanditAnalysis(self.api_client)
         logger.info(f"Initialized One-Armed Bandit analysis for {len(report_codes)} reports")
         analysis.analyze(report_codes)

@@ -8,10 +8,14 @@ containing common functionality and abstract methods.
 import logging
 from abc import ABC
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, Optional
+
+import pandas as pd
 
 from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF
+from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot
 from ..utils.helpers import filter_players_by_roles
 
 logger = logging.getLogger(__name__)
@@ -1048,8 +1052,6 @@ class BossAnalysisBase(ABC):
         sorted_reports = sorted(self.results, key=lambda x: x["starttime"], reverse=True)
         latest_report = sorted_reports[0]
 
-        from datetime import datetime
-
         report_date = datetime.fromtimestamp(latest_report["starttime"]).strftime("%d.%m.%Y")
 
         # Get fight durations for current and previous reports
@@ -1082,10 +1084,6 @@ class BossAnalysisBase(ABC):
         :param current_fight_duration: Total duration of current fights in milliseconds
         :param previous_fight_duration: Total duration of previous fights in milliseconds
         """
-        import pandas as pd
-
-        from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot
-
         analysis_name = plot_config["analysis_name"]
         plot_type = plot_config["plot_type"]
         title = plot_config["title"]
