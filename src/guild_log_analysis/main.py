@@ -11,7 +11,6 @@ import pkgutil
 from typing import Any
 
 from . import analysis
-from .analysis.bosses.one_armed_bandit import OneArmedBanditAnalysis
 from .analysis.registry import get_registered_bosses
 from .api.auth import get_access_token
 from .api.client import WarcraftLogsAPIClient
@@ -62,7 +61,11 @@ class GuildLogAnalyzer:
             # Create analyze_<boss_name> method
             analyze_method_name = f"analyze_{boss_name}"
             if not hasattr(self, analyze_method_name):
-                setattr(self, analyze_method_name, self._create_analyze_method(boss_name, boss_class))
+                setattr(
+                    self,
+                    analyze_method_name,
+                    self._create_analyze_method(boss_name, boss_class),
+                )
                 logger.debug(f"Created method: {analyze_method_name}")
 
             # Create generate_<boss_name>_plots method
@@ -122,37 +125,21 @@ class GuildLogAnalyzer:
         :return: The plot generation method function
         """
 
-        def generate_plots_method() -> None:
+        def generate_plots_method(include_progress_plots: bool = True) -> None:
             if boss_name not in self.analyses:
                 logger.warning(f"No {boss_name} analysis found. Run analyze_{boss_name}() first.")
                 return
 
-            self.analyses[boss_name].generate_plots()
+            self.analyses[boss_name].generate_plots(include_progress_plots=include_progress_plots)
 
         # Set proper method name and docstring
         generate_plots_method.__name__ = f"generate_{boss_name}_plots"
-        generate_plots_method.__doc__ = f"Generate plots for {boss_name} analysis."
+        generate_plots_method.__doc__ = (
+            f"Generate plots for {boss_name} analysis.\n\n"
+            ":param include_progress_plots: Whether to generate progress plots (default: True)"
+        )
 
         return generate_plots_method
-
-    def analyze_one_armed_bandit(self, report_codes: list) -> None:
-        """
-        Analyze One-Armed Bandit encounters.
-
-        :param report_codes: List of Warcraft Logs report codes to analyze
-        """
-        analysis = OneArmedBanditAnalysis(self.api_client)
-        logger.info(f"Initialized One-Armed Bandit analysis for {len(report_codes)} reports")
-        analysis.analyze(report_codes)
-        self.analyses["one_armed_bandit"] = analysis
-
-    def generate_one_armed_bandit_plots(self) -> None:
-        """Generate plots for One-Armed Bandit analysis."""
-        if "one_armed_bandit" not in self.analyses:
-            logger.warning("No One-Armed Bandit analysis found. Run analyze_one_armed_bandit() first.")
-            return
-
-        self.analyses["one_armed_bandit"].generate_plots()
 
 
 def main() -> None:
@@ -165,19 +152,24 @@ def main() -> None:
 
     # Example report codes (replace with actual ones)
     report_codes = [
-        # "GzqYMJW3hFHXVdxT",  # 12.06.
-        # "BTYHxq1QC6wdVjrv",  # 15.06.
-        # "29ykfGtYXWw6Zngb",  # 19.06.
-        "jYAM7vCZ3PmzGNWg",
+        "kPJma1QVhABKz4Hr",  # 25.05.
+        "yC1KYmQpv9MbNw4T",  # 05.06.
+        "GzqYMJW3hFHXVdxT",  # 12.06.
+        "BTYHxq1QC6wdVjrv",  # 15.06.
+        "29ykfGtYXWw6Zngb",  # 19.06.
+        "jYAM7vCZ3PmzGNWg",  # 22.06.
         "XHwhTRPpgqrMvj6m",  # 26.06.
+        "8xyNr6Ak3PmLHDK9",  # 29.06.
+        "JgqDctCB8v9XryVQ",  # 03.07.
+        "trY9VZXfGmw1KCpF",  # 06.07. Kill + Sprocketmonger
     ]
 
     try:
         # Analyze One-Armed Bandit encounters
         analyzer.analyze_one_armed_bandit(report_codes)
 
-        # Generate plots
-        analyzer.generate_one_armed_bandit_plots()
+        # Generate plots (including progress plots)
+        analyzer.generate_one_armed_bandit_plots(include_progress_plots=True)
 
         logger.info("Analysis completed successfully")
 

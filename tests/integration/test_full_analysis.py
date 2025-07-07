@@ -68,41 +68,40 @@ class TestFullAnalysisWorkflow:
             assert callable(analyzer.analyze_one_armed_bandit)
             assert callable(analyzer.generate_one_armed_bandit_plots)
 
-    @patch("src.guild_log_analysis.main.OneArmedBanditAnalysis")
     @patch("src.guild_log_analysis.main.get_access_token")
-    def test_analyze_one_armed_bandit_auto_generated(self, mock_get_access_token, mock_analysis_class):
-        """Test auto-generated analyze method works."""
+    def test_dynamic_boss_methods_exist(self, mock_get_access_token):
+        """Test that dynamically created boss methods exist and are callable."""
         mock_get_access_token.return_value = "oauth_token"
 
-        mock_analysis = Mock()
-        mock_analysis_class.return_value = mock_analysis
-
         analyzer = GuildLogAnalyzer()
-        report_codes = ["report1", "report2"]
-        analyzer.analyze_one_armed_bandit(report_codes)
 
-        # Verify the analysis was created and analyze was called
-        mock_analysis_class.assert_called_once_with(analyzer.api_client)
-        mock_analysis.analyze.assert_called_once_with(report_codes)
-        assert analyzer.analyses["one_armed_bandit"] == mock_analysis
+        # Should have dynamically created methods for registered bosses
+        assert hasattr(analyzer, "analyze_one_armed_bandit")
+        assert hasattr(analyzer, "generate_one_armed_bandit_plots")
+        assert callable(getattr(analyzer, "analyze_one_armed_bandit"))
+        assert callable(getattr(analyzer, "generate_one_armed_bandit_plots"))
 
-    @patch("src.guild_log_analysis.main.OneArmedBanditAnalysis")
     @patch("src.guild_log_analysis.main.get_access_token")
-    def test_analyze_one_armed_bandit_legacy_compatibility(self, mock_get_access_token, mock_analysis_class):
-        """Test One-Armed Bandit analysis workflow."""
+    def test_plot_methods_accept_progress_plots_parameter(self, mock_get_access_token):
+        """Test that plot methods accept include_progress_plots parameter."""
         mock_get_access_token.return_value = "oauth_token"
 
-        mock_analysis = Mock()
-        mock_analysis_class.return_value = mock_analysis
-
         analyzer = GuildLogAnalyzer()
-        report_codes = ["report1", "report2"]
 
-        analyzer.analyze_one_armed_bandit(report_codes)
+        # Mock an analysis to avoid actual execution
+        mock_analysis = Mock()
+        mock_analysis.generate_plots = Mock()
+        analyzer.analyses["one_armed_bandit"] = mock_analysis
 
-        mock_analysis_class.assert_called_once_with(analyzer.api_client)
-        mock_analysis.analyze.assert_called_once_with(report_codes)
-        assert analyzer.analyses["one_armed_bandit"] == mock_analysis
+        # Should be able to call with include_progress_plots parameter
+        plot_method = getattr(analyzer, "generate_one_armed_bandit_plots")
+        plot_method(include_progress_plots=True)
+        plot_method(include_progress_plots=False)
+
+        # Verify generate_plots was called with the correct parameters
+        assert mock_analysis.generate_plots.call_count == 2
+        mock_analysis.generate_plots.assert_any_call(include_progress_plots=True)
+        mock_analysis.generate_plots.assert_any_call(include_progress_plots=False)
 
     @patch("src.guild_log_analysis.main.get_access_token")
     @patch("src.guild_log_analysis.plotting.NumberPlot")

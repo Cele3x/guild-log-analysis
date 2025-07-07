@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-07-07
+
+### Added
+- **Command-Line Interface**: New `guild-analyze` CLI command with comprehensive argument support
+- **Progress Plots**: Multi-line plots showing player metrics trends over time with role categorization
+- **CLI Script**: Standalone `scripts/analyze` script for direct execution
+- **Multi-line Plot Module**: Complete visualization system for tracking progression across multiple reports
+- **CLI Documentation**: Comprehensive CLI_USAGE.md with examples and usage patterns
+
+### Enhanced
+- **Plot Organization**: Regular plots saved to dated subdirectories (output/YYYY-MM-DD/)
+- **Progress Plot Features**: Duration normalization, role-based categorization, class-colored lines
+- **Test Suite**: Optimized test coverage from 74% to 78% with comprehensive CLI tests
+- **Configuration Management**: Enhanced settings with player categorization support
+
+### Fixed
+- **Empty Graph Issue**: Resolved empty progress plots for inappropriate role combinations
+- **GitIgnore Update**: Updated patterns to match new output directory structure
+- **Test Optimization**: Removed obsolete tests and improved mock patterns for better stability
+
+### CLI Features
+- **Boss Selection**: `--list-bosses` to show available encounters
+- **Progress Control**: `--progress-plots` flag to enable trend visualization (disabled by default)
+- **Output Control**: Configurable output directory with `--output-dir`
+- **Logging Control**: Verbose (`--verbose`) and debug (`--debug`) logging options
+- **Authentication**: Automatic .env file integration for API credentials
+
+### Technical Details
+- Progress plots support role categories: tanks_healers, melee_dps, ranged_dps
+- Duration normalization for cross-report comparison (per-hour metrics)
+- Comprehensive CLI argument validation and error handling
+- Organized output structure with separate directories for regular and progress plots
+- Enhanced test isolation and coverage optimization
+
 ## [2.2.0] - 2025-06-27
 
 ### Added

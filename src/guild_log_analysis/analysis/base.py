@@ -16,6 +16,7 @@ import pandas as pd
 from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF
 from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot
+from ..plotting.multi_line import MultiLinePlot
 from ..utils.helpers import filter_players_by_roles
 
 logger = logging.getLogger(__name__)
@@ -1052,10 +1053,16 @@ class BossAnalysisBase(ABC):
         # Convert dictionary to list
         return list(unique_players.values())
 
-    def generate_plots(self) -> None:
-        """Generate plots using configuration."""
+    def generate_plots(self, include_progress_plots: bool = True) -> None:
+        """
+        Generate plots using configuration.
+
+        :param include_progress_plots: Whether to generate progress plots (default: True)
+        """
         if self.CONFIG:
             self._generate_plots_generic()
+            if include_progress_plots:
+                self._generate_progress_plots()
         else:
             self._generate_plots_legacy()
 
@@ -1218,3 +1225,283 @@ class BossAnalysisBase(ABC):
 
         plot.save()
         logger.debug(f"Generated {plot_type} for {title}")
+
+    def _generate_progress_plots(self) -> None:
+        """Generate multi-line progress plots for all enabled configurations."""
+        logger.info(f"Generating multi-line plots for {self.boss_name} analysis")
+
+        if not self.results:
+            logger.warning("No reports available to generate multi-line plots")
+            return
+
+        # Generate multi-line plots for each configuration that has it enabled
+        for config in self.CONFIG:
+            multi_line_config = config.get("progress_plot")
+            if not multi_line_config or not multi_line_config.get("enabled", False):
+                continue
+
+            try:
+                self._generate_progress_plot(config["name"], multi_line_config, config.get("roles", []))
+            except Exception as e:
+                logger.error(f"Error generating multi-line plot for {config['name']}: {e}")
+                continue
+
+    def _generate_progress_plot(self, metric_name: str, multi_line_config: dict, roles: list = None) -> None:
+        """
+        Generate a multi-line progress plot for a specific metric.
+
+        :param metric_name: Name of the metric to plot
+        :param multi_line_config: Multi-line plot configuration
+        :param roles: Optional role filtering for the metric
+        """
+        # Extract data from analysis results organized by date
+        date_data = {}
+        all_player_roles = {}
+
+        # Get column key and y-axis label early
+        column_key = multi_line_config["column_key"]
+        y_axis_label = multi_line_config["y_axis_label"]
+
+        for result in self.results:
+            # Convert timestamp to formatted date string
+            timestamp = result["starttime"]
+            date = datetime.fromtimestamp(timestamp).strftime("%d.%m.%Y")
+
+            # Get player role information for this report
+            report_code = result.get("reportCode")
+            fight_ids = set(result.get("fight_ids", []))
+
+            if report_code and fight_ids:
+                player_roles = self._get_player_details(report_code, fight_ids)
+                all_player_roles.update(player_roles)
+                logger.debug(f"Found {len(player_roles)} players with roles in report {report_code}")
+
+            # Find results for this specific metric
+            for analysis_item in result["analysis"]:
+                if analysis_item["name"] == metric_name:
+                    # Convert analysis data to DataFrame
+                    df = pd.DataFrame(analysis_item["data"])
+
+                    # Apply role filtering if specified
+                    if roles:
+                        df = pd.DataFrame(self._filter_players_by_roles(df.to_dict("records"), roles))
+
+                    # Apply duration normalization if configured
+                    if multi_line_config.get("normalize_by_duration", True):
+                        df = self._normalize_data_by_duration(df, column_key, result.get("total_duration"))
+
+                    date_data[date] = df
+                    break
+
+        if not date_data:
+            logger.warning(f"No data found for metric '{metric_name}'")
+            return
+
+        # Check if role categories are specified for separate plots
+        role_categories = multi_line_config.get("role_categories")
+        if role_categories:
+            self._generate_role_categorized_plots(
+                metric_name, date_data, all_player_roles, column_key, y_axis_label, role_categories
+            )
+        else:
+            # Generate single multi-line plot
+            plot_title = f"{metric_name} Progress Over Time"
+            self._create_and_save_progress_plot(plot_title, date_data, column_key, y_axis_label)
+
+    def _generate_role_categorized_plots(
+        self,
+        metric_name: str,
+        date_data: dict,
+        all_player_roles: dict,
+        column_key: str,
+        y_axis_label: str,
+        role_categories: dict,
+    ) -> None:
+        """Generate separate multi-line plots for different role categories."""
+        # Group data by role categories
+        role_data = {category: {} for category in role_categories.keys()}
+
+        for date, df in date_data.items():
+            for category in role_data.keys():
+                role_data[category][date] = pd.DataFrame()
+
+            # Categorize players by role using API data
+            for _, row in df.iterrows():
+                player_name = row.get("player_name", "Unknown")
+                category = self._get_player_role_category(player_name, all_player_roles)
+                logger.debug(f"Player {player_name} categorized as {category}")
+
+                # Add player to appropriate category
+                if category in role_data:
+                    if role_data[category][date].empty:
+                        role_data[category][date] = pd.DataFrame([row])
+                    else:
+                        role_data[category][date] = pd.concat(
+                            [role_data[category][date], pd.DataFrame([row])], ignore_index=True
+                        )
+
+        # Generate plots for each category that has data
+        for category, category_data in role_data.items():
+            # Check if this category has any data across all dates
+            has_data = any(not df.empty for df in category_data.values())
+
+            if has_data:
+                # Filter out empty DataFrames from the category data
+                filtered_data = {date: df for date, df in category_data.items() if not df.empty}
+
+                if filtered_data:
+                    plot_title = f"{metric_name} Progress - {role_categories[category]}"
+                    self._create_and_save_progress_plot(plot_title, filtered_data, column_key, y_axis_label)
+                else:
+                    logger.debug(f"No data for category {category} after filtering empty DataFrames")
+            else:
+                logger.debug(f"No data for category {category}")
+
+    def _create_and_save_progress_plot(
+        self, plot_title: str, date_data: dict, column_key: str, y_axis_label: str
+    ) -> str:
+        """Create and save a multi-line plot."""
+        # Get ignored players from settings
+        from ..config.settings import Settings
+
+        settings = Settings()
+        ignored_players = settings.ignored_players
+
+        progress_plot = MultiLinePlot(
+            title=plot_title,
+            data=date_data,
+            column_key=column_key,
+            y_axis_label=y_axis_label,
+            ignored_players=ignored_players,
+        )
+
+        # Save the plot
+        filename = progress_plot.save()
+        logger.info(f"Multi-line progress plot saved to: {filename}")
+        return filename
+
+    def _get_player_details(self, report_code: str, fight_ids: set[int]) -> dict[str, str]:
+        """
+        Get player role details from WarcraftLogs API.
+
+        :param report_code: The WarcraftLogs report code
+        :param fight_ids: Set of fight IDs to get player details for
+        :returns: Dictionary mapping player names to their roles
+        """
+        query = """
+        query GetPlayerDetails($reportCode: String!, $fightIDs: [Int]!) {
+          reportData {
+            report(code: $reportCode) {
+              playerDetails(fightIDs: $fightIDs, includeCombatantInfo: true)
+            }
+          }
+        }
+        """
+
+        variables = {"reportCode": report_code, "fightIDs": list(fight_ids)}
+
+        result = self.api_client.make_request(query, variables)
+        if not result or "data" not in result or "reportData" not in result["data"]:
+            logger.warning(f"No player details data returned for report {report_code}")
+            return {}
+
+        player_details = result["data"]["reportData"]["report"]["playerDetails"]
+        if not player_details or "data" not in player_details:
+            logger.warning(f"No player details found for report {report_code}")
+            return {}
+
+        # Extract role information from player details
+        player_roles = {}
+        details_data = player_details["data"]["playerDetails"]
+
+        # Process each role category
+        for role_category in ["dps", "healers", "tanks"]:
+            if role_category in details_data:
+                for player in details_data[role_category]:
+                    player_name = player.get("name")
+                    if player_name:
+                        if role_category in ["healers", "tanks"]:
+                            player_roles[player_name] = "tanks_healers"
+                        else:
+                            player_roles[player_name] = "dps"
+
+        return player_roles
+
+    def _get_player_role_category(self, player_name: str, player_roles: dict[str, str]) -> str:
+        """
+        Get role category for a player based on API data.
+
+        :param player_name: Player name
+        :param player_roles: Dictionary mapping player names to roles
+        :returns: Role category (tanks_healers, melee_dps, or ranged_dps)
+        """
+        # Get melee DPS players from settings
+        from ..config.settings import Settings
+
+        settings = Settings()
+        melee_dps_players = settings.melee_dps_players
+
+        # Get base role from API data
+        base_role = player_roles.get(player_name, "dps")
+
+        # If player is DPS, further categorize as melee or ranged
+        if base_role == "dps":
+            if player_name in melee_dps_players:
+                return "melee_dps"
+            else:
+                return "ranged_dps"
+        else:
+            # Keep tanks and healers as they are
+            return base_role
+
+    def _normalize_data_by_duration(
+        self, df: pd.DataFrame, column_key: str, total_duration_ms: Optional[int]
+    ) -> pd.DataFrame:
+        """
+        Normalize data by fight duration to make it comparable across reports.
+
+        :param df: DataFrame containing the data
+        :param column_key: Column to normalize
+        :param total_duration_ms: Total fight duration in milliseconds
+        :return: DataFrame with normalized data
+        """
+        if total_duration_ms is None or total_duration_ms <= 0:
+            logger.warning("Cannot normalize data: invalid or missing fight duration")
+            return df
+
+        # Create a copy to avoid modifying original data
+        df_normalized = df.copy()
+
+        if column_key not in df_normalized.columns:
+            logger.warning(f"Column '{column_key}' not found in data, skipping normalization")
+            return df
+
+        # Convert duration to hours for normalization (more appropriate for 3-hour raid sessions)
+        duration_hours = total_duration_ms / (1000 * 60 * 60)
+
+        # Determine normalization approach based on metric type
+        if column_key in ["interrupts", "hit_count"]:
+            # For count-based metrics, normalize to "per hour"
+            df_normalized[column_key] = df_normalized[column_key] / duration_hours
+            df_normalized[f"{column_key}_original"] = df[column_key]  # Keep original for reference
+        elif column_key in [
+            "damage_to_small_packages",
+            "damage_to_reel_assistants",
+            "damage_to_boss",
+            "absorbed_damage_to_reel_assistants",
+            "hits_by_travelling_flames",
+            "damage_taken_from_falling_coins",
+        ]:
+            # For damage-based metrics, normalize to "per hour"
+            df_normalized[column_key] = df_normalized[column_key] / duration_hours
+            df_normalized[f"{column_key}_original"] = df[column_key]  # Keep original for reference
+        elif column_key == "uptime_percentage":
+            # Percentage metrics don't need duration normalization as they're already relative
+            pass
+        else:
+            # For unknown metrics, apply general per-hour normalization
+            logger.debug(f"Applying general normalization to metric '{column_key}'")
+            df_normalized[column_key] = df_normalized[column_key] / duration_hours
+            df_normalized[f"{column_key}_original"] = df[column_key]  # Keep original for reference
+
+        return df_normalized

@@ -173,7 +173,7 @@ cache/*.json
 cache/*.json.*
 tests/**/*.json
 logs/*.logs
-plots/*.png
+output/**/*.png
 tests/**/*.png
 *.http
 

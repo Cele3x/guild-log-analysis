@@ -806,9 +806,12 @@ class BaseTablePlot(ABC):
         from ..config.settings import Settings
 
         plots_dir = Settings().plots_directory
-        os.makedirs(plots_dir, exist_ok=True)
 
-        return os.path.join(plots_dir, filename)
+        # Create subfolder for regular plots using report date
+        report_date_dir = os.path.join(plots_dir, date_stamp)
+        os.makedirs(report_date_dir, exist_ok=True)
+
+        return os.path.join(report_date_dir, filename)
 
     def show(self) -> None:
         """Display the plot."""

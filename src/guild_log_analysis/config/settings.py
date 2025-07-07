@@ -99,3 +99,19 @@ class Settings:
     def log_format(self) -> str:
         """Get log format string."""
         return os.getenv("LOG_FORMAT", DEFAULT_LOG_FORMAT)
+
+    # Player Configuration
+    @property
+    def melee_dps_players(self) -> set[str]:
+        """Get set of melee DPS player names."""
+        melee_players_str = os.getenv(
+            "MELEE_DPS_PLAYERS",
+            "Daarkin,Kazzekus,Kaschy,Kâsandra,Playpala,Doløød,Ixany,Phipsi,Nudelbeißer,Dämonir,Cranekickzdh,Arthios",
+        )
+        return {name.strip() for name in melee_players_str.split(",") if name.strip()}
+
+    @property
+    def ignored_players(self) -> set[str]:
+        """Get set of player names to ignore in plots."""
+        ignored_players_str = os.getenv("IGNORED_PLAYERS", "Ilagi,Sinayan,Tåygeta,Kaschyma,Zwerggo")
+        return {name.strip() for name in ignored_players_str.split(",") if name.strip()}
