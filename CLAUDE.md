@@ -171,6 +171,7 @@ All functional testing of analysis types, plot types, and role variations should
 - `damage_to_actor`: Damage/healing to specific targets
 - `damage_taken_from_ability`: Damage received from abilities
 - `damage_to_actor` with `filter_expression`: Filtered damage tracking
+- `player_deaths`: Player death tracking with optional ability filter (uses table-based query for efficiency)
 
 **Current Plot Types** (all must be represented in example boss):
 - `NumberPlot`: Simple numeric displays

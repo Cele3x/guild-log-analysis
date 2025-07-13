@@ -139,4 +139,32 @@ class ExampleBossAnalysis(BossAnalysisBase):
                 "column_header_2": "Uptime %",
             },
         },
+        {
+            "name": "Deaths from Fire Mechanic",
+            "analysis": {
+                "type": "player_deaths",
+                "ability_id": 33333,  # Only deaths from specific ability
+                "wipe_cutoff": 5,  # Count deaths before wipe threshold
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "title": "Deaths from Fire Mechanic",
+                "column_key_1": "deaths_from_fire_mechanic",
+                "column_header_2": "Deaths",
+            },
+        },
+        {
+            "name": "All Deaths",
+            "analysis": {
+                "type": "player_deaths",
+                # No filter_expression = all deaths
+                "wipe_cutoff": 3,
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "title": "All Deaths (Wipe Cutoff 3)",
+                "column_key_1": "all_deaths",
+                "column_header_2": "Deaths",
+            },
+        },
     ]

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2025-07-13
+
+### Added
+- **Player Deaths Analysis**: New `player_deaths` analysis type with table-based queries for efficiency
+- **Table Data Analysis**: Generic `table_data` analysis type for flexible data retrieval
+- **Wrong Mine Analysis**: Specialized `wrong_mine_analysis` for correlating debuffs with damage events
+- **Sprocketmonger Lockenstock Boss**: Complete boss analysis implementation with wrong mine trigger tracking
+
+### Enhanced
+- **Code Formatting**: Applied comprehensive code reformatting following PEP 8 standards
+- **Documentation**: Updated CLAUDE.md with player_deaths analysis type documentation
+- **Error Handling**: Improved null checks and defensive programming throughout base analysis
+- **Query Optimization**: Added ability filtering for player deaths with optional ability_id parameter
+
+### Technical Details
+- Player deaths analysis uses table queries instead of events for better performance
+- Wrong mine analysis correlates Unstable Shrapnel debuffs with Polarized Catastro-Blast damage
+- Table data analysis supports multiple data types (Debuffs, DamageTaken, Deaths)
+- Enhanced correlation window and minimum victims threshold configuration
+- Improved defensive null checking throughout codebase
+
 ## [2.3.0] - 2025-07-07
 
 ### Added
