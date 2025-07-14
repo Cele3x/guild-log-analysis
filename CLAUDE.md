@@ -128,7 +128,7 @@ REDIRECT_URI=http://localhost:8080/callback
 
 1. Main analyzer initializes API client with OAuth token
 2. Boss-specific analysis classes query Warcraft Logs GraphQL API
-3. Raw data is processed using base class methods (`get_fight_ids`, `get_participants`, `get_damage_to_actor`, `analyze_interrupts`, `analyze_debuff_uptime`)
+3. Raw data is processed using base class methods (`get_fight_ids`, `get_participants`, `get_damage_to_actor`, `analyze_interrupts`, `analyze_table_data`)
 4. Results stored in `self.results` list with structured analysis data
 5. Plotting classes generate visualizations from processed results
 
@@ -167,11 +167,15 @@ All functional testing of analysis types, plot types, and role variations should
 
 **Current Analysis Types** (all must be represented in example boss):
 - `interrupts`: Boss interrupt tracking
-- `debuff_uptime`: Debuff duration tracking
+- `table_data`: Unified table-based analysis supporting multiple data types:
+  - `"data_type": "Debuffs"`: Debuff duration tracking
+  - `"data_type": "DamageTaken"`: Damage received from abilities
+  - `"data_type": "Deaths"`: Player death tracking with optional ability filter
 - `damage_to_actor`: Damage/healing to specific targets
-- `damage_taken_from_ability`: Damage received from abilities
 - `damage_to_actor` with `filter_expression`: Filtered damage tracking
-- `player_deaths`: Player death tracking with optional ability filter (uses table-based query for efficiency)
+
+**Boss-Specific Analysis Types**:
+- `wrong_mine_analysis`: Specialized analysis for correlating debuffs with damage events (implemented in sprocketmonger_lockenstock.py)
 
 **Current Plot Types** (all must be represented in example boss):
 - `NumberPlot`: Simple numeric displays
@@ -221,6 +225,57 @@ Custom exceptions in `src/guild_log_analysis/api/exceptions.py` handle different
 ### Caching Strategy
 
 API responses cached with automatic file rotation when cache exceeds 10MB. Cache keys generated from GraphQL query + variables combination. Cache can be cleared programmatically or individual entries invalidated.
+
+### Analysis Method Refactoring
+
+The analysis system has been refactored to use a unified `analyze_table_data` method instead of multiple specialized methods. This consolidation provides several benefits:
+
+**Replaced Methods:**
+- `analyze_player_deaths` → `analyze_table_data` with `"data_type": "Deaths"`
+- `analyze_debuff_uptime` → `analyze_table_data` with `"data_type": "Debuffs"`
+- `analyze_damage_taken_from_ability` → `analyze_table_data` with `"data_type": "DamageTaken"`
+
+**Legacy Configuration Migration:**
+Old boss configurations using deprecated analysis types are automatically converted:
+```python
+# Old approach
+"analysis": {
+    "type": "player_deaths",
+    "ability_id": 1216415,
+}
+
+# New unified approach
+"analysis": {
+    "type": "table_data",
+    "ability_id": 1216415,
+    "data_type": "Deaths",
+}
+```
+
+**Benefits of Unified Approach:**
+- Reduced code duplication (~400 lines removed)
+- Consistent API for all table-based queries
+- Easier maintenance and extension
+- Unified caching and error handling
+- Standardized field mapping across data types
+
+### Universal Duration Normalization
+
+All analysis plots now automatically normalize data by fight duration using the `column_key_1` field:
+
+**Normalized Metrics:**
+- Count-based metrics (interrupts, hit_count, etc.) → "per hour"
+- Damage-based metrics (damage_taken, damage_to_actor, etc.) → "per hour"
+
+**Non-Normalized Metrics:**
+- Percentage metrics (uptime_percentage, etc.) → Already relative
+- Death counts → Discrete events, not time-dependent
+
+**Benefits:**
+- Fair comparison across different fight durations
+- Consistent visualization across reports
+- Automatic handling without configuration needed
+- Original values preserved as `{metric}_original` for reference
 
 ## Code Style Guidelines
 

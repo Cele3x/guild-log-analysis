@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2025-07-14
+
+### Fixed
+- **Parameter Ordering**: Fixed critical runtime error "string indices must be integers, not 'str'" by correcting parameter order in `_execute_analysis` method calls
+- **Universal Normalization**: Removed incorrect universal duration normalization from main data columns, keeping only change-specific normalization
+- **Table Data Analysis**: Fixed participant-based filtering to eliminate duplicate characters and ensure consistent data processing
+- **Deaths Data Processing**: Corrected Deaths data type handling to properly count individual death events
+
+### Refactoring
+- **Analysis Method Consolidation**: Replaced specialized methods (`analyze_player_deaths`, `analyze_debuff_uptime`, `analyze_damage_taken_from_ability`) with unified `analyze_table_data` method
+- **Code Reduction**: Removed ~400 lines of duplicate code through method consolidation
+- **API Consistency**: Standardized table-based analysis interface across all data types
+
+### Enhanced
+- **Documentation**: Updated CLAUDE.md with unified analysis method documentation and legacy configuration migration guide
+- **Error Prevention**: Improved participant-based data filtering to prevent duplicates and inconsistent results
+
+### Technical Details
+- Legacy analysis types automatically converted to unified `table_data` approach
+- Participant-based filtering ensures data consistency across all analysis types
+- Deaths data type now correctly processes individual death events
+- Normalized parameter ordering prevents runtime errors in analysis execution
+
 ## [2.4.0] - 2025-07-13
 
 ### Added

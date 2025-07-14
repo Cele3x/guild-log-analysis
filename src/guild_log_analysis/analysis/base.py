@@ -139,7 +139,7 @@ class BossAnalysisBase(ABC):
                 if "roles" in config:
                     analysis_config["roles"] = config["roles"]
 
-                data = self._execute_analysis(analysis_config, report_code, fight_ids, report_players)
+                data = self._execute_analysis(report_code, analysis_config, fight_ids, report_players)
                 report_results["analysis"].append({"name": analysis_config["name"], "data": data})
             except Exception as e:
                 logger.error(f"Error executing analysis {config['name']}: {e}")
@@ -150,16 +150,16 @@ class BossAnalysisBase(ABC):
 
     def _execute_analysis(
         self,
-        config: dict[str, Any],
         report_code: str,
+        config: dict[str, Any],
         fight_ids: set[int],
         report_players: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """
         Execute a single analysis based on configuration.
 
-        :param config: Analysis configuration dictionary
         :param report_code: The WarcraftLogs report code
+        :param config: Analysis configuration dictionary
         :param fight_ids: Set of fight IDs to analyze
         :param report_players: List of players who participated in the fights
         :return: Analysis results data
@@ -177,15 +177,6 @@ class BossAnalysisBase(ABC):
                 ability_id=config["ability_id"],
                 wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
             )
-        elif analysis_type == "debuff_uptime":
-            data = self.analyze_debuff_uptime(
-                report_code=report_code,
-                fight_ids=fight_ids,
-                report_players=filtered_players,
-                ability_id=config["ability_id"],
-                wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
-                filter_expression=config.get("filter_expression"),
-            )
         elif analysis_type == "damage_to_actor":
             data = self.get_damage_to_actor(
                 report_code=report_code,
@@ -199,45 +190,12 @@ class BossAnalysisBase(ABC):
             if "result_key" in config and config["result_key"] != "damage":
                 for player_data in data:
                     player_data[config["result_key"]] = player_data.pop("damage")
-        elif analysis_type == "damage_taken_from_ability":
-            data = self.analyze_damage_taken_from_ability(
-                report_code=report_code,
-                fight_ids=fight_ids,
-                report_players=filtered_players,
-                ability_id=config["ability_id"],
-                wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
-                filter_expression=config.get("filter_expression"),
-            )
-            # Rename damage field if result_key is specified
-            if "result_key" in config and config["result_key"] != "damage_taken":
-                for player_data in data:
-                    player_data[config["result_key"]] = player_data.pop("damage_taken")
-        elif analysis_type == "player_deaths":
-            data = self.analyze_player_deaths(
-                report_code=report_code,
-                fight_ids=fight_ids,
-                report_players=filtered_players,
-                wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
-                filter_expression=config.get("filter_expression"),
-                ability_id=config.get("ability_id"),
-            )
-            # Rename deaths field if result_key is specified
-            if "result_key" in config and config["result_key"] != "deaths":
-                for player_data in data:
-                    player_data[config["result_key"]] = player_data.pop("deaths")
         elif analysis_type == "table_data":
             data = self.analyze_table_data(
                 report_code=report_code,
                 config=config,
                 fight_ids=fight_ids,
-            )
-        elif analysis_type == "wrong_mine_analysis":
-            data = self.analyze_wrong_mine_triggers(
-                report_code=report_code,
-                fight_ids=fight_ids,
                 report_players=filtered_players,
-                config=config,
-                wipe_cutoff=config.get("wipe_cutoff"),  # Pass None if not specified
             )
         else:
             raise ValueError(f"Unknown analysis type: {analysis_type}")
@@ -797,125 +755,6 @@ class BossAnalysisBase(ABC):
         # Convert dictionary to list for DataFrame
         return list(unique_players.values())
 
-    def analyze_debuff_uptime(
-        self,
-        report_code: str,
-        fight_ids: set[int],
-        report_players: list[dict[str, Any]],
-        ability_id: float,
-        wipe_cutoff: Optional[int] = DEFAULT_WIPE_CUTOFF,
-        filter_expression: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
-        """
-        Analyze debuff uptime for a specific ability.
-
-        :param report_code: The WarcraftLogs report code
-        :param fight_ids: Set of fight IDs to analyze
-        :param report_players: List of players who participated in the fights
-        :param ability_id: The ability ID to track debuff uptime for
-        :param wipe_cutoff: Stop counting events after this many players have died
-        :param filter_expression: Optional expression to filter the report data
-        :return: List of player data with debuff uptime percentages
-        """
-        # Get debuff uptime data
-        query = """
-        query DebuffUptime(
-            $reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!,
-            $filterExpression: String, $encounterID: Int!, $difficulty: Int!, $wipeCutoff: Int!
-        ) {
-          reportData {
-            report(code: $reportCode) {
-              table(
-                dataType: Debuffs
-                fightIDs: $fightIDs
-                encounterID: $encounterID
-                difficulty: $difficulty
-                abilityID: $abilityID
-                killType: Wipes
-                wipeCutoff: $wipeCutoff
-                filterExpression: $filterExpression
-              )
-            }
-          }
-        }
-        """
-
-        variables = {
-            "reportCode": report_code,
-            "fightIDs": list(fight_ids),
-            "abilityID": float(ability_id),
-            "filterExpression": filter_expression,
-            "encounterID": self.encounter_id,
-            "difficulty": self.difficulty,
-            "wipeCutoff": wipe_cutoff,
-        }
-
-        result = self.api_client.make_request(query, variables)
-        if not result or "data" not in result or "reportData" not in result["data"]:
-            logger.warning("No data returned for debuff uptime query")
-            return []
-
-        table_data = result["data"]["reportData"]["report"]["table"]
-        if not table_data or "data" not in table_data:
-            logger.warning("No table data found for debuff uptime")
-            return []
-
-        # Get total time from the response
-        data = table_data["data"]
-        total_time = data.get("totalTime", 0)  # Total time in milliseconds
-
-        if not total_time:
-            logger.warning("Could not get total time from debuff query response")
-            return []
-
-        # Initialize uptime tracking for each player
-        uptime_data = defaultdict(lambda: {"total_uptime": 0, "uptime_percentage": 0.0})
-        for player in report_players:
-            uptime_data[player["name"]] = {
-                "total_uptime": 0,
-                "uptime_percentage": 0.0,
-            }
-
-        # Process auras data (debuff entries)
-        auras = data.get("auras", [])
-        for aura in auras:
-            actor_name = aura.get("name")
-            total_uptime_ms = aura.get("totalUptime", 0)  # Uptime in milliseconds
-
-            # Find matching player
-            matching_player = next(
-                (player for player in report_players if player["name"] == actor_name),
-                None,
-            )
-            if matching_player:
-                uptime_percentage = (total_uptime_ms / total_time) * 100 if total_time > 0 else 0
-                uptime_data[actor_name] = {
-                    "total_uptime": total_uptime_ms,
-                    "uptime_percentage": uptime_percentage,
-                }
-            else:
-                logger.debug(f"Player {actor_name} is missing in report_players")
-
-        # Create a dictionary to store unique player data
-        unique_players = {}
-        for player in report_players:
-            player_name = player["name"]
-            player_uptime = uptime_data[player_name]
-            if player_name not in unique_players:
-                unique_players[player_name] = {
-                    "player_name": player_name,
-                    "class": player["type"],
-                    "role": player["role"],  # Keep the first role encountered
-                    "uptime_percentage": round(player_uptime["uptime_percentage"], 2),
-                }
-            else:
-                # If player exists, update uptime if the new percentage is higher
-                if player_uptime["uptime_percentage"] > unique_players[player_name]["uptime_percentage"]:
-                    unique_players[player_name]["uptime_percentage"] = round(player_uptime["uptime_percentage"], 2)
-
-        # Convert dictionary to list for DataFrame
-        return list(unique_players.values())
-
     def _calculate_debuff_uptime(
         self,
         events: list[dict[str, Any]],
@@ -962,257 +801,20 @@ class BossAnalysisBase(ABC):
 
         return round(uptime_percentage, 2)
 
-    def analyze_damage_taken_from_ability(
-        self,
-        report_code: str,
-        fight_ids: set[int],
-        report_players: list[dict[str, Any]],
-        ability_id: float,
-        wipe_cutoff: Optional[int] = DEFAULT_WIPE_CUTOFF,
-        filter_expression: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
-        """
-        Analyze damage taken from a specific ability.
-
-        :param report_code: The WarcraftLogs report code
-        :param fight_ids: Set of fight IDs to analyze
-        :param report_players: List of players who participated in the fights
-        :param ability_id: The ability ID to track damage taken from (float)
-        :param wipe_cutoff: Stop counting events after this many players have died
-        :param filter_expression: Optional expression to filter the report data
-        :return: List of player data with damage taken amounts
-        """
-        query = """
-        query GetDamageTakenByAbility(
-            $reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!,
-            $filterExpression: String, $encounterID: Int!, $difficulty: Int!, $wipeCutoff: Int!
-        ) {
-          reportData {
-            report(code: $reportCode) {
-              table(
-                dataType: DamageTaken
-                fightIDs: $fightIDs
-                encounterID: $encounterID
-                difficulty: $difficulty
-                abilityID: $abilityID
-                killType: Wipes
-                wipeCutoff: $wipeCutoff
-                filterExpression: $filterExpression
-              )
-            }
-          }
-        }
-        """
-
-        variables = {
-            "reportCode": report_code,
-            "fightIDs": list(fight_ids),
-            "abilityID": float(ability_id),
-            "filterExpression": filter_expression,
-            "encounterID": self.encounter_id,
-            "difficulty": self.difficulty,
-            "wipeCutoff": wipe_cutoff,
-        }
-
-        response = self.api_client.make_request(query, variables)
-
-        if not response or "data" not in response or "reportData" not in response["data"]:
-            logger.warning(f"No damage taken data found for ability {ability_id} in report {report_code}")
-            return []
-
-        report_data = response["data"]["reportData"]["report"]
-        if not report_data:
-            logger.warning(f"No report found for code {report_code}")
-            return []
-
-        table_data = report_data["table"]
-        if not table_data or "data" not in table_data:
-            logger.warning(f"No damage taken table data for ability {ability_id} in report {report_code}")
-            return []
-
-        entries = table_data["data"]["entries"]
-        if not entries:
-            logger.info(f"No damage taken entries found for ability {ability_id} in report {report_code}")
-            # Return all players with 0 damage taken and hit count instead of empty list
-            return [
-                {
-                    "player_name": player["name"],
-                    "class": player["type"],
-                    "role": player["role"],
-                    "damage_taken": 0,
-                    "hit_count": 0,
-                }
-                for player in report_players
-            ]
-
-        # Process damage taken data
-        damage_data = {}
-        for entry in entries:
-            actor_name = entry.get("name")
-            total_damage = entry.get("total", 0)
-            hit_count = entry.get("hitCount", 0)
-
-            # Find matching player
-            matching_player = next(
-                (player for player in report_players if player["name"] == actor_name),
-                None,
-            )
-            if matching_player:
-                damage_data[actor_name] = {
-                    "damage_taken": total_damage,
-                    "hit_count": hit_count,
-                }
-            else:
-                logger.debug(f"Player {actor_name} is missing in report_players")
-
-        # Create a dictionary to store unique player data
-        unique_players = {}
-        for player in report_players:
-            player_name = player["name"]
-            player_damage = damage_data.get(player_name, {"damage_taken": 0, "hit_count": 0})
-            if player_name not in unique_players:
-                unique_players[player_name] = {
-                    "player_name": player_name,
-                    "class": player["type"],
-                    "role": player["role"],
-                    "damage_taken": player_damage["damage_taken"],
-                    "hit_count": player_damage["hit_count"],
-                }
-            else:
-                # If player exists, keep the higher values (should be the same from API)
-                if player_damage["damage_taken"] > unique_players[player_name]["damage_taken"]:
-                    unique_players[player_name]["damage_taken"] = player_damage["damage_taken"]
-                if player_damage["hit_count"] > unique_players[player_name]["hit_count"]:
-                    unique_players[player_name]["hit_count"] = player_damage["hit_count"]
-
-        # Convert dictionary to list
-        return list(unique_players.values())
-
-    def analyze_player_deaths(
-        self,
-        report_code: str,
-        fight_ids: set[int],
-        report_players: list[dict[str, Any]],
-        wipe_cutoff: Optional[int] = DEFAULT_WIPE_CUTOFF,
-        filter_expression: Optional[str] = None,
-        ability_id: Optional[float] = None,
-    ) -> list[dict[str, Any]]:
-        """
-        Analyze player deaths using table data for efficient querying.
-
-        :param report_code: The WarcraftLogs report code
-        :param fight_ids: Set of fight IDs to analyze
-        :param report_players: List of players who participated in the fights
-        :param wipe_cutoff: Stop counting events after this many players have died
-        :param filter_expression: Optional expression to filter death events (deprecated, use ability_id instead)
-        :param ability_id: Optional ability ID to filter deaths by specific ability (e.g., 1216415 for Blazing Beam)
-        :return: List of player data with death counts
-        """
-        # Get deaths table data
-        query = """
-        query GetDeathsTable(
-            $reportCode: String!, $fightIDs: [Int], $encounterID: Int!, $difficulty: Int!,
-            $wipeCutoff: Int, $abilityID: Float
-        ) {
-          reportData {
-            report(code: $reportCode) {
-              table(
-                dataType: Deaths
-                fightIDs: $fightIDs
-                encounterID: $encounterID
-                difficulty: $difficulty
-                abilityID: $abilityID
-                wipeCutoff: $wipeCutoff
-              )
-            }
-          }
-        }
-        """
-
-        variables = {
-            "reportCode": report_code,
-            "fightIDs": list(fight_ids),
-            "encounterID": self.encounter_id,
-            "difficulty": self.difficulty,
-            "wipeCutoff": wipe_cutoff,
-            "abilityID": ability_id,
-        }
-
-        result = self.api_client.make_request(query, variables)
-        if not result or "data" not in result or "reportData" not in result["data"]:
-            logger.warning(f"No deaths data returned for report {report_code}")
-            return []
-
-        table_data = result["data"]["reportData"]["report"]["table"]
-        if not table_data or "data" not in table_data:
-            logger.warning(f"No deaths table data found for report {report_code}")
-            return []
-
-        entries = table_data["data"].get("entries", [])
-        if not entries:
-            logger.info(f"No death entries found in report {report_code}")
-            # Return all players with 0 deaths instead of empty list
-            return [
-                {
-                    "player_name": player["name"],
-                    "class": player["type"],
-                    "role": player["role"],
-                    "deaths": 0,
-                }
-                for player in report_players
-            ]
-
-        # Initialize death counter for each player
-        death_counts = defaultdict(int)
-        for player in report_players:
-            death_counts[player["name"]] = 0
-
-        # Count deaths from table entries
-        for entry in entries:
-            player_name = entry.get("name")
-            # Each entry represents one death for that player
-            death_count = 1
-
-            # Find matching player in report_players
-            matching_player = next(
-                (player for player in report_players if player["name"] == player_name),
-                None,
-            )
-            if matching_player:
-                death_counts[player_name] += death_count
-            else:
-                logger.debug(f"Player {player_name} is missing in report_players")
-
-        # Create a dictionary to store unique player data
-        unique_players = {}
-        for player in report_players:
-            player_name = player["name"]
-            if player_name not in unique_players:
-                unique_players[player_name] = {
-                    "player_name": player_name,
-                    "class": player["type"],
-                    "role": player["role"],
-                    "deaths": death_counts[player_name],
-                }
-            else:
-                # If player exists, update deaths if the new count is higher
-                if death_counts[player_name] > unique_players[player_name]["deaths"]:
-                    unique_players[player_name]["deaths"] = death_counts[player_name]
-
-        # Convert dictionary to list for DataFrame
-        return list(unique_players.values())
-
     def analyze_table_data(
         self,
         report_code: str,
         config: dict[str, Any],
         fight_ids: Optional[set[int]] = None,
+        report_players: Optional[list[dict[str, Any]]] = None,
     ) -> list[dict[str, Any]]:
         """
         Analyze data using the table query for flexible data retrieval.
 
         :param report_code: The WarcraftLogs report code
         :param config: Configuration dictionary containing table query parameters
+        :param fight_ids: Optional set of fight IDs to filter
+        :param report_players: List of players who participated in the fights
         :return: List of player data processed from table response
         """
         # Get table data using the new method
@@ -1231,8 +833,11 @@ class BossAnalysisBase(ABC):
             logger.warning(f"No table data returned for report {report_code}")
             return []
 
-        # Parse the table data and convert to player list format
-        # The table data structure varies by data_type, so we need to handle it generically
+        if not report_players:
+            logger.warning("No report players provided for table data analysis")
+            return []
+
+        # Parse the table data to extract metrics by player name
         try:
             # Table data is typically JSON with player entries
             import json
@@ -1242,330 +847,109 @@ class BossAnalysisBase(ABC):
             else:
                 parsed_data = table_data
 
-            # Extract player data from table structure
-            player_data = []
+            # Create lookup dictionary for table data metrics by player name
+            table_metrics = {}
 
             # Handle WarcraftLogs table data format
             if isinstance(parsed_data, dict) and "data" in parsed_data:
-                # Check for specific data types
+                # Check for specific data types and extract entries
                 if config.get("data_type") == "Debuffs" and "auras" in parsed_data["data"]:
                     entries = parsed_data["data"]["auras"]
                 elif config.get("data_type") == "DamageTaken" and "entries" in parsed_data["data"]:
                     entries = parsed_data["data"]["entries"]
+                elif config.get("data_type") == "Deaths" and "entries" in parsed_data["data"]:
+                    entries = parsed_data["data"]["entries"]
                 else:
                     entries = parsed_data["data"]
-            elif isinstance(parsed_data, list):
-                entries = parsed_data
-            else:
-                logger.warning(f"Unexpected table data format for report {report_code}")
-                return []
 
-            # Process each entry in the table
-            for entry in entries:
-                if isinstance(entry, dict) and "name" in entry:
+                # Process entries from table data
+                for entry in entries:
+                    if isinstance(entry, dict) and "name" in entry:
+                        player_name = entry["name"]
+
+                        # Extract metrics based on data type
+                        if config.get("data_type") == "Debuffs":
+                            table_metrics[player_name] = {
+                                "uptime_percentage": round(
+                                    (entry.get("totalUptime", 0) / parsed_data["data"].get("totalTime", 1)) * 100, 2
+                                ),
+                                "hit_count": entry.get("totalUses", 0),
+                            }
+                        elif config.get("data_type") == "DamageTaken":
+                            table_metrics[player_name] = {
+                                "damage_taken": entry.get("total", 0),
+                                "total_reduced": entry.get("totalReduced", 0),
+                                "overheal": entry.get("overheal", 0),
+                                "hit_count": entry.get(
+                                    "hitCount",
+                                    entry.get("tickCount", 1 if entry.get("total", 0) > 0 else 0),
+                                ),
+                            }
+                        elif config.get("data_type") == "Deaths":
+                            # Deaths data type returns death events, not simple counts
+                            # Each entry represents a death event, so count = 1 per entry
+                            # If we've seen this player before, increment; otherwise start at 1
+                            if player_name in table_metrics:
+                                table_metrics[player_name]["deaths"] += 1
+                                table_metrics[player_name]["hit_count"] += 1
+                            else:
+                                table_metrics[player_name] = {
+                                    "deaths": 1,
+                                    "hit_count": 1,
+                                }
+                        else:
+                            # For other data types, add all numeric fields
+                            metrics = {}
+                            for key, value in entry.items():
+                                if isinstance(value, (int, float)) and key not in ["id", "type", "name"]:
+                                    metrics[key] = value
+                            table_metrics[player_name] = metrics
+
+            # Create result based on report_players to ensure consistency and avoid duplicates
+            unique_players = {}
+            for player in report_players:
+                player_name = player["name"]
+                if player_name not in unique_players:
+                    # Start with participant data (consistent role/class info)
                     player_entry = {
-                        "player_name": entry["name"],
-                        "class": entry.get("type", "Unknown"),
-                        "role": entry.get("role", "Unknown"),
+                        "player_name": player_name,
+                        "class": player["type"],
+                        "role": player["role"],
                     }
 
-                    # Add metrics based on data type
-                    if config.get("data_type") == "Debuffs":
-                        # For debuffs, extract uptime and hit count from WarcraftLogs format
-                        player_entry["uptime_percentage"] = round(
-                            (entry.get("totalUptime", 0) / parsed_data["data"].get("totalTime", 1)) * 100, 2
-                        )
-                        player_entry["hit_count"] = entry.get("totalUses", 0)
-                    elif config.get("data_type") == "DamageTaken":
-                        # For damage taken, extract damage and available fields
-                        player_entry["damage_taken"] = entry.get("total", 0)
-                        player_entry["total_reduced"] = entry.get("totalReduced", 0)
-                        player_entry["overheal"] = entry.get("overheal", 0)
-                        # Extract any hit-related fields that might be available
-                        player_entry["hit_count"] = entry.get(
-                            "hitCount",
-                            entry.get("tickCount", 1 if entry.get("total", 0) > 0 else 0),
-                        )
-                        # Debug: log available fields for the first entry
-                        if config.get("debug_fields"):
-                            logger.info(
-                                f"DEBUG DamageTaken fields for " f"{entry.get('name', 'Unknown')}: {list(entry.keys())}"
-                            )
+                    # Add metrics from table data if available
+                    if player_name in table_metrics:
+                        player_entry.update(table_metrics[player_name])
                     else:
-                        # For other data types, add all numeric fields
-                        for key, value in entry.items():
-                            if isinstance(value, (int, float)) and key not in ["id", "type"]:
-                                player_entry[key] = value
+                        # Add default values for missing players based on data type
+                        if config.get("data_type") == "Debuffs":
+                            player_entry.update({"uptime_percentage": 0.0, "hit_count": 0})
+                        elif config.get("data_type") == "DamageTaken":
+                            player_entry.update({"damage_taken": 0, "total_reduced": 0, "overheal": 0, "hit_count": 0})
+                        elif config.get("data_type") == "Deaths":
+                            player_entry.update({"deaths": 0, "hit_count": 0})
 
-                    player_data.append(player_entry)
+                    unique_players[player_name] = player_entry
+                else:
+                    # Update with higher values if player appears multiple times (role switching)
+                    if player_name in table_metrics:
+                        existing_entry = unique_players[player_name]
+                        new_metrics = table_metrics[player_name]
 
+                        # Update with higher values for numeric fields
+                        for key, value in new_metrics.items():
+                            if isinstance(value, (int, float)):
+                                if key not in existing_entry or value > existing_entry[key]:
+                                    existing_entry[key] = value
+
+            # Convert to list and log results
+            player_data = list(unique_players.values())
             logger.info(f"Processed {len(player_data)} players from table data for report {report_code}")
+
             return player_data
 
         except Exception as e:
             logger.error(f"Error parsing table data for report {report_code}: {e}")
-            return []
-
-    def analyze_wrong_mine_triggers(
-        self,
-        report_code: str,
-        fight_ids: set[int],
-        report_players: list[dict[str, Any]],
-        config: dict[str, Any],
-        wipe_cutoff: Optional[int] = None,
-    ) -> list[dict[str, Any]]:
-        """
-        Analyze wrong mine triggers by correlating Unstable Shrapnel debuffs.
-
-        This method correlates Unstable Shrapnel debuffs with subsequent
-        Polarized Catastro-Blast damage.
-
-        :param report_code: The WarcraftLogs report code
-        :param fight_ids: Set of fight IDs to analyze
-        :param report_players: List of players who participated in the fights
-        :param config: Configuration with debuff_ability_id, damage_ability_id,
-                       correlation_window_ms, min_victims_threshold
-        :param wipe_cutoff: Optional wipe cutoff - if None, tracks all events; if set, stops after N deaths
-        :return: List of player data with wrong mine trigger counts
-        """
-        debuff_ability_id = config["debuff_ability_id"]  # 1218342 - Unstable Shrapnel
-        damage_ability_id = config["damage_ability_id"]  # 1219047 - Polarized Catastro-Blast
-        correlation_window_ms = config.get("correlation_window_ms", 1000)
-        min_victims_threshold = config.get("min_victims_threshold", 3)
-
-        # Query for player names (for readable results)
-        players_query = """
-        query GetPlayerNames($reportCode: String!) {
-          reportData {
-            report(code: $reportCode) {
-              masterData {
-                actors(type: "Player") {
-                  id
-                  name
-                  server
-                  type
-                  subType
-                }
-              }
-            }
-          }
-        }
-        """
-
-        # Query for debuff applications (applydebuff events)
-        debuff_query = """
-        query GetUnstableShrapnelEvents($reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!) {
-          reportData {
-            report(code: $reportCode) {
-              events(
-                fightIDs: $fightIDs,
-                abilityID: $abilityID,
-                dataType: Debuffs,
-                hostilityType: Friendlies,
-                limit: 1000
-              ) {
-                data
-                nextPageTimestamp
-              }
-            }
-          }
-        }
-        """
-
-        # Query for damage events
-        damage_query = """
-        query GetPolarizedDamageEvents($reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!) {
-          reportData {
-            report(code: $reportCode) {
-              events(
-                fightIDs: $fightIDs,
-                abilityID: $abilityID,
-                dataType: DamageDone,
-                hostilityType: Enemies,
-                limit: 1000
-              ) {
-                data
-                nextPageTimestamp
-              }
-            }
-          }
-        }
-        """
-
-        try:
-            # Get player names for readable results
-            players_variables = {"reportCode": report_code}
-            players_result = self.api_client.make_request(players_query, players_variables)
-
-            player_names = {}
-            if players_result and "data" in players_result:
-                actors = players_result["data"]["reportData"]["report"]["masterData"]["actors"]
-                for actor in actors:
-                    player_names[actor["id"]] = actor["name"]
-
-            # Get debuff events
-            debuff_variables = {
-                "reportCode": report_code,
-                "fightIDs": list(fight_ids),
-                "abilityID": float(debuff_ability_id),
-            }
-
-            debuff_result = self.api_client.make_request(debuff_query, debuff_variables)
-            if not debuff_result or "data" not in debuff_result:
-                logger.warning(f"No debuff events returned for report {report_code}")
-                return []
-
-            # Get damage events
-            damage_variables = {
-                "reportCode": report_code,
-                "fightIDs": list(fight_ids),
-                "abilityID": float(damage_ability_id),
-            }
-
-            damage_result = self.api_client.make_request(damage_query, damage_variables)
-            if not damage_result or "data" not in damage_result:
-                logger.warning(f"No damage events returned for report {report_code}")
-                return []
-
-            # Parse events
-            debuff_events = debuff_result["data"]["reportData"]["report"]["events"]["data"]
-            damage_events = damage_result["data"]["reportData"]["report"]["events"]["data"]
-
-            # Get death events if wipe cutoff is specified
-            wipe_cutoff_timestamps = {}  # fight_id -> timestamp when wipe cutoff reached
-            if wipe_cutoff is not None:
-                death_query = """
-                query GetDeathEvents($reportCode: String!, $fightIDs: [Int]!) {
-                  reportData {
-                    report(code: $reportCode) {
-                      events(
-                        fightIDs: $fightIDs,
-                        dataType: Deaths,
-                        hostilityType: Friendlies,
-                        limit: 1000
-                      ) {
-                        data
-                      }
-                    }
-                  }
-                }
-                """
-
-                death_variables = {
-                    "reportCode": report_code,
-                    "fightIDs": list(fight_ids),
-                }
-
-                death_result = self.api_client.make_request(death_query, death_variables)
-                if death_result and "data" in death_result:
-                    death_events = death_result["data"]["reportData"]["report"]["events"]["data"]
-
-                    # Calculate wipe cutoff timestamp for each fight
-                    death_counts = defaultdict(int)
-                    for death_event in death_events:
-                        if death_event.get("type") == "death":
-                            fight_id = death_event["fight"]
-                            death_counts[fight_id] += 1
-
-                            # Record when wipe cutoff is reached
-                            if death_counts[fight_id] == wipe_cutoff and fight_id not in wipe_cutoff_timestamps:
-                                wipe_cutoff_timestamps[fight_id] = death_event["timestamp"]
-                                logger.debug(f"Wipe cutoff reached in fight {fight_id} at {death_event['timestamp']}ms")
-
-            # Track wrong mine triggers per player
-            wrong_mine_triggers = defaultdict(int)
-            incidents = []
-
-            # Analyze each debuff application
-            for debuff_event in debuff_events:
-                if debuff_event.get("type") == "applydebuff":
-                    debuff_timestamp = debuff_event["timestamp"]
-                    culprit_id = debuff_event["targetID"]
-                    fight_id = debuff_event["fight"]
-
-                    # Skip events after wipe cutoff if specified
-                    if wipe_cutoff is not None and fight_id in wipe_cutoff_timestamps:
-                        if debuff_timestamp > wipe_cutoff_timestamps[fight_id]:
-                            continue
-
-                    # Find correlated damage events within the time window
-                    victims = set()
-                    for damage_event in damage_events:
-                        if (
-                            damage_event.get("type") == "damage"
-                            and damage_event["fight"] == fight_id
-                            and damage_event["timestamp"] >= debuff_timestamp
-                            and damage_event["timestamp"] <= debuff_timestamp + correlation_window_ms
-                        ):
-
-                            # Skip damage events after wipe cutoff if specified
-                            if wipe_cutoff is not None and fight_id in wipe_cutoff_timestamps:
-                                if damage_event["timestamp"] > wipe_cutoff_timestamps[fight_id]:
-                                    continue
-
-                            victims.add(damage_event["targetID"])
-
-                    # Check if this qualifies as a wrong mine trigger (enough victims)
-                    if len(victims) >= min_victims_threshold:
-                        wrong_mine_triggers[culprit_id] += 1
-                        incidents.append(
-                            {
-                                "culprit_id": culprit_id,
-                                "timestamp": debuff_timestamp,
-                                "fight_id": fight_id,
-                                "victim_count": len(victims),
-                                "victim_ids": list(victims),
-                            }
-                        )
-
-            # Log detailed incident information
-            if incidents:
-                logger.info(f"Found {len(incidents)} wrong mine triggers in report {report_code}:")
-                for incident in incidents:
-                    culprit_name = player_names.get(incident["culprit_id"], f"ID {incident['culprit_id']}")
-                    victim_names = [player_names.get(vid, f"ID {vid}") for vid in incident["victim_ids"]]
-                    logger.info(
-                        f"  Fight {incident['fight_id']}: {culprit_name} triggered wrong mine "
-                        f"at {incident['timestamp']}ms, affecting {incident['victim_count']} "
-                        f"players: {', '.join(victim_names)}"
-                    )
-            else:
-                logger.info(f"No wrong mine triggers detected in report {report_code}")
-                # Debug: log what events we did find
-                logger.info(f"  Found {len(debuff_events)} debuff events and {len(damage_events)} damage events")
-
-                # Log sample events for debugging
-                if debuff_events:
-                    sample_debuff = debuff_events[0]
-                    logger.info(f"  Sample debuff event: {sample_debuff}")
-                if damage_events:
-                    sample_damage = damage_events[0]
-                    logger.info(f"  Sample damage event: {sample_damage}")
-
-            # Create player data structure
-            player_data = []
-            for player in report_players:
-                player_id = player.get("id")
-                trigger_count = wrong_mine_triggers.get(player_id, 0)
-
-                player_data.append(
-                    {
-                        "player_name": player["name"],
-                        "class": player["type"],
-                        "role": player["role"],
-                        "wrong_mine_triggers": trigger_count,
-                    }
-                )
-
-            wipe_cutoff_info = f" (wipe cutoff: {wipe_cutoff})" if wipe_cutoff is not None else " (no wipe cutoff)"
-            logger.info(
-                f"Analyzed wrong mine triggers: {len(incidents)} total incidents across "
-                f"{len([p for p in player_data if p['wrong_mine_triggers'] > 0])} players{wipe_cutoff_info}"
-            )
-            return player_data
-
-        except Exception as e:
-            logger.error(f"Error analyzing wrong mine triggers for report {report_code}: {e}")
             return []
 
     def generate_plots(self, include_progress_plots: bool = True) -> None:
@@ -1679,6 +1063,11 @@ class BossAnalysisBase(ABC):
                 if player_name and player_name in previous_dict:
                     filtered_previous_dict[player_name] = previous_dict[player_name]
             previous_dict = filtered_previous_dict
+
+        # Check if we have data to plot
+        if not current_data:
+            logger.warning(f"No data found for analysis {analysis_name}, skipping plot generation")
+            return
 
         df = pd.DataFrame(current_data)
 
@@ -2075,28 +1464,16 @@ class BossAnalysisBase(ABC):
         # Convert duration to hours for normalization (more appropriate for 3-hour raid sessions)
         duration_hours = total_duration_ms / (1000 * 60 * 60)
 
-        # Determine normalization approach based on metric type
-        if column_key in ["interrupts", "hit_count"]:
-            # For count-based metrics, normalize to "per hour"
-            df_normalized[column_key] = df_normalized[column_key] / duration_hours
-            df_normalized[f"{column_key}_original"] = df[column_key]  # Keep original for reference
-        elif column_key in [
-            "damage_to_small_packages",
-            "damage_to_reel_assistants",
-            "damage_to_boss",
-            "absorbed_damage_to_reel_assistants",
-            "hits_by_travelling_flames",
-            "damage_taken_from_falling_coins",
-        ]:
-            # For damage-based metrics, normalize to "per hour"
-            df_normalized[column_key] = df_normalized[column_key] / duration_hours
-            df_normalized[f"{column_key}_original"] = df[column_key]  # Keep original for reference
-        elif column_key == "uptime_percentage":
+        # Universal normalization: normalize all numeric columns except percentage metrics
+        if column_key == "uptime_percentage" or column_key.endswith("_percentage"):
             # Percentage metrics don't need duration normalization as they're already relative
-            pass
+            logger.debug(f"Skipping normalization for percentage metric '{column_key}'")
+        elif column_key == "deaths":
+            # Deaths are typically not normalized by duration as they represent discrete events
+            logger.debug(f"Skipping normalization for death count metric '{column_key}'")
         else:
-            # For unknown metrics, apply general per-hour normalization
-            logger.debug(f"Applying general normalization to metric '{column_key}'")
+            # For all other numeric metrics, normalize to "per hour"
+            logger.debug(f"Applying duration normalization to metric '{column_key}' (per hour)")
             df_normalized[column_key] = df_normalized[column_key] / duration_hours
             df_normalized[f"{column_key}_original"] = df[column_key]  # Keep original for reference
 

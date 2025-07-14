@@ -42,8 +42,9 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
         {
             "name": "High Roller! Buff Uptime",
             "analysis": {
-                "type": "debuff_uptime",
+                "type": "table_data",
                 "ability_id": 460444,
+                "data_type": "Debuffs",
             },
             "plot": {
                 "type": "PercentagePlot",
@@ -153,13 +154,14 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
         {
             "name": "Hits by Travelling Flames",
             "analysis": {
-                "type": "damage_taken_from_ability",
+                "type": "table_data",
                 "ability_id": 1223999,
+                "data_type": "DamageTaken",
             },
             "plot": {
                 "type": "HitCountPlot",
                 "column_key_1": "hit_count",
-                "column_key_2": "hits_by_travelling_flames",
+                "column_key_2": "damage_taken",
             },
             "progress_plot": {
                 "enabled": True,
@@ -176,13 +178,14 @@ class OneArmedBanditAnalysis(BossAnalysisBase):
         {
             "name": "Damage Taken from Falling Coins",
             "analysis": {
-                "type": "damage_taken_from_ability",
+                "type": "table_data",
                 "ability_id": 460424,
+                "data_type": "DamageTaken",
             },
             "plot": {
                 "type": "HitCountPlot",
                 "column_key_1": "hit_count",
-                "column_key_2": "damage_taken_from_falling_coins",
+                "column_key_2": "damage_taken",
             },
             "progress_plot": {
                 "enabled": True,

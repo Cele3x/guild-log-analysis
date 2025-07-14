@@ -2,7 +2,7 @@
 Example boss analysis demonstrating the new configuration-based system.
 
 This file shows how simple it is to create a new boss analysis using
-the registry-based configuration system.
+the registry-based configuration system with the unified table_data approach.
 """
 
 from typing import Any
@@ -43,8 +43,9 @@ class ExampleBossAnalysis(BossAnalysisBase):
             "name": "Debuff Uptime",
             # No roles specified = all roles (tanks, healers, DPS)
             "analysis": {
-                "type": "debuff_uptime",
+                "type": "table_data",
                 "ability_id": 67890,  # Replace with actual debuff ID
+                "data_type": "Debuffs",
             },
             "plot": {
                 "type": "PercentagePlot",
@@ -84,15 +85,16 @@ class ExampleBossAnalysis(BossAnalysisBase):
         {
             "name": "Damage Taken from Fire",
             "analysis": {
-                "type": "damage_taken_from_ability",
+                "type": "table_data",
                 "ability_id": 33333,  # Replace with actual ability ID
+                "data_type": "DamageTaken",
             },
             "plot": {
                 "type": "HitCountPlot",
                 "title": "Fire Damage Taken",
                 "column_key_1": "hit_count",
                 "column_header_2": "Hits",
-                "column_key_2": "damage_taken_from_fire",
+                "column_key_2": "damage_taken",
                 "column_header_3": "Damage Taken",
             },
         },
@@ -128,8 +130,9 @@ class ExampleBossAnalysis(BossAnalysisBase):
         {
             "name": "Low Tolerance Debuff",
             "analysis": {
-                "type": "debuff_uptime",
+                "type": "table_data",
                 "ability_id": 67890,  # Replace with actual debuff ID
+                "data_type": "Debuffs",
                 "wipe_cutoff": 2,  # Stop counting after 2 people died
             },
             "plot": {
@@ -142,28 +145,30 @@ class ExampleBossAnalysis(BossAnalysisBase):
         {
             "name": "Deaths from Fire Mechanic",
             "analysis": {
-                "type": "player_deaths",
+                "type": "table_data",
                 "ability_id": 33333,  # Only deaths from specific ability
+                "data_type": "Deaths",
                 "wipe_cutoff": 5,  # Count deaths before wipe threshold
             },
             "plot": {
                 "type": "NumberPlot",
                 "title": "Deaths from Fire Mechanic",
-                "column_key_1": "deaths_from_fire_mechanic",
+                "column_key_1": "deaths",
                 "column_header_2": "Deaths",
             },
         },
         {
             "name": "All Deaths",
             "analysis": {
-                "type": "player_deaths",
-                # No filter_expression = all deaths
+                "type": "table_data",
+                "data_type": "Deaths",
+                # No ability_id = all deaths
                 "wipe_cutoff": 3,
             },
             "plot": {
                 "type": "NumberPlot",
                 "title": "All Deaths (Wipe Cutoff 3)",
-                "column_key_1": "all_deaths",
+                "column_key_1": "deaths",
                 "column_header_2": "Deaths",
             },
         },
