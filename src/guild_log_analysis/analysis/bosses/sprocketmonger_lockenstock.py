@@ -46,7 +46,7 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             "name": "Screw Up's",
             "analysis": {
                 "type": "table_data",
-                "ability_id": 1216509,
+                "ability_id": 1217261,
                 "data_type": "Debuffs",
             },
             "plot": {

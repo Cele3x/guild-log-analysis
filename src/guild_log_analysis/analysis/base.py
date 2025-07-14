@@ -17,7 +17,7 @@ from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF
 from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot
 from ..plotting.multi_line import MultiLinePlot
-from ..utils.helpers import filter_players_by_roles
+from ..utils.helpers import deduplicate_players, filter_players_by_roles
 
 logger = logging.getLogger(__name__)
 
@@ -472,9 +472,13 @@ class BossAnalysisBase(ABC):
                     f"Role: {player_info['role']}"
                 )
 
-        logger.info(f"Found a total of {len(players)} players.")
+        logger.info(f"Found a total of {len(players)} players before deduplication.")
 
-        return players if players else None
+        # Deduplicate players who might appear in multiple roles
+        deduplicated_players = deduplicate_players(players, key="name")
+        logger.info(f"After deduplication: {len(deduplicated_players)} unique players.")
+
+        return deduplicated_players if deduplicated_players else None
 
     def find_analysis_data(
         self, analysis_name: str, value_column: str, name_column: str
@@ -1218,8 +1222,9 @@ class BossAnalysisBase(ABC):
             difficulty=config.get("difficulty", self.difficulty),
             ability_id=config["ability_id"],
             data_type=config.get("data_type", "Debuffs"),
-            kill_type=config.get("kill_type", "Encounters"),
+            kill_type=config.get("kill_type", "Wipes"),
             fight_ids=fight_ids,
+            wipe_cutoff=config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF),
         )
 
         if not table_data:
@@ -1908,8 +1913,9 @@ class BossAnalysisBase(ABC):
         difficulty: int,
         ability_id: int,
         data_type: str = "Debuffs",
-        kill_type: str = "Encounters",
+        kill_type: str = "Wipes",
         fight_ids: Optional[set[int]] = None,
+        wipe_cutoff: Optional[int] = None,
     ) -> Optional[dict[str, Any]]:
         """
         Get table data from WarcraftLogs API using the table query.
@@ -1919,13 +1925,15 @@ class BossAnalysisBase(ABC):
         :param difficulty: The difficulty level (e.g., 5 for Mythic)
         :param ability_id: The ability ID to query
         :param data_type: The type of data to query (default: "Debuffs")
-        :param kill_type: The kill type to query (default: "Encounters")
+        :param kill_type: The kill type to query (default: "Wipes")
+        :param fight_ids: Optional set of fight IDs to filter
+        :param wipe_cutoff: Optional number of deaths before stopping event counting
         :return: Table data response or None if error
         """
         query = """
         query GetTableData(
             $reportCode: String!, $encounterID: Int!, $difficulty: Int!,
-            $abilityID: Float!, $dataType: TableDataType!, $killType: KillType!, $fightIDs: [Int]
+            $abilityID: Float!, $dataType: TableDataType!, $killType: KillType!, $fightIDs: [Int], $wipeCutoff: Int
         ) {
           reportData {
             report(code: $reportCode) {
@@ -1935,7 +1943,8 @@ class BossAnalysisBase(ABC):
                 abilityID: $abilityID,
                 dataType: $dataType,
                 killType: $killType,
-                fightIDs: $fightIDs
+                fightIDs: $fightIDs,
+                wipeCutoff: $wipeCutoff
               )
             }
           }
@@ -1950,6 +1959,7 @@ class BossAnalysisBase(ABC):
             "dataType": data_type,
             "killType": kill_type,
             "fightIDs": list(fight_ids) if fight_ids else None,
+            "wipeCutoff": wipe_cutoff,
         }
 
         try:

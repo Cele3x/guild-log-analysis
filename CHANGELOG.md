@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Wrong Mine Analysis**: Specialized `wrong_mine_analysis` for correlating debuffs with damage events
 - **Sprocketmonger Lockenstock Boss**: Complete boss analysis implementation with wrong mine trigger tracking
 
+### Fixed
+- **Duplicate Players**: Fixed players appearing twice in analyses when switching roles during encounters
+- **Death Cutoff**: Ensured all analysis queries use 4 deaths cutoff by default for consistent behavior
+- **Table Query Support**: Added wipeCutoff parameter to table data queries for proper wipe filtering
+
 ### Enhanced
 - **Code Formatting**: Applied comprehensive code reformatting following PEP 8 standards
 - **Documentation**: Updated CLAUDE.md with player_deaths analysis type documentation
@@ -24,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wrong mine analysis correlates Unstable Shrapnel debuffs with Polarized Catastro-Blast damage
 - Table data analysis supports multiple data types (Debuffs, DamageTaken, Deaths)
 - Enhanced correlation window and minimum victims threshold configuration
-- Improved defensive null checking throughout codebase
+- Player deduplication prevents duplicate entries for role-switching players
+- Default kill_type changed from "Encounters" to "Wipes" for table data queries
 
 ## [2.3.0] - 2025-07-07
 
