@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "guild-log-analysis"
-version = "2.4.1"
+version = "2.5.0"
 description = "A comprehensive tool for analyzing World of Warcraft guild logs from Warcraft Logs API"
 readme = "README.md"
 license = {text = "MIT"}

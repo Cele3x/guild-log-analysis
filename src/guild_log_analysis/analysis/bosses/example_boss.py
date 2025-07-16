@@ -37,6 +37,7 @@ class ExampleBossAnalysis(BossAnalysisBase):
                 "title": "Boss Interrupts (DPS Only)",  # Optional title override
                 "column_key_1": "interrupts",
                 "column_header_2": "Interrupts",
+                "description": "DPS players successfully interrupting the boss ability",  # Optional description
             },
         },
         {
@@ -52,6 +53,7 @@ class ExampleBossAnalysis(BossAnalysisBase):
                 "title": "Debuff Uptime (All Roles)",
                 "column_key_1": "uptime_percentage",
                 "column_header_2": "Uptime %",
+                # No description specified - will use date instead
             },
         },
         {
@@ -96,6 +98,7 @@ class ExampleBossAnalysis(BossAnalysisBase):
                 "column_header_2": "Hits",
                 "column_key_2": "damage_taken",
                 "column_header_3": "Damage Taken",
+                "invert_change_colors": True,  # Less damage taken is better
             },
         },
         {
@@ -170,6 +173,22 @@ class ExampleBossAnalysis(BossAnalysisBase):
                 "title": "All Deaths (Wipe Cutoff 3)",
                 "column_key_1": "deaths",
                 "column_header_2": "Deaths",
+            },
+        },
+        {
+            "name": "Player Survivability",
+            "analysis": {
+                "type": "table_data",
+                "data_type": "Survivability",
+                "ability_id": 0,  # Not used for survivability, but required by table query
+                "wipe_cutoff": 4,  # Standard wipe cutoff
+            },
+            "plot": {
+                "type": "SurvivabilityPlot",
+                "title": "Average Survivability",
+                "column_key_1": "survivability_percentage",
+                "column_header_2": "Survivability %",
+                "description": "Average percentage of fight time survived across all attempts",
             },
         },
     ]

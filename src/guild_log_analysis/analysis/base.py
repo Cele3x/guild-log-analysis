@@ -15,9 +15,9 @@ import pandas as pd
 
 from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF
-from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot
+from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot, SurvivabilityPlot
 from ..plotting.multi_line import MultiLinePlot
-from ..utils.helpers import deduplicate_players, filter_players_by_roles
+from ..utils.helpers import filter_players_by_roles
 
 logger = logging.getLogger(__name__)
 
@@ -433,7 +433,15 @@ class BossAnalysisBase(ABC):
         logger.info(f"Found a total of {len(players)} players before deduplication.")
 
         # Deduplicate players who might appear in multiple roles
-        deduplicated_players = deduplicate_players(players, key="name")
+        seen = set()
+        deduplicated_players = []
+        for player in players:
+            if "name" in player:
+                player_name = player["name"]
+                if player_name not in seen:
+                    seen.add(player_name)
+                    deduplicated_players.append(player)
+
         logger.info(f"After deduplication: {len(deduplicated_players)} unique players.")
 
         return deduplicated_players if deduplicated_players else None
@@ -755,52 +763,6 @@ class BossAnalysisBase(ABC):
         # Convert dictionary to list for DataFrame
         return list(unique_players.values())
 
-    def _calculate_debuff_uptime(
-        self,
-        events: list[dict[str, Any]],
-        player_name: str,
-        total_duration_ms: int,
-    ) -> float:
-        """
-        Calculate debuff uptime percentage for a specific player.
-
-        :param events: List of debuff events
-        :param player_name: Name of the player to calculate uptime for
-        :param total_duration_ms: Total fight duration in milliseconds
-        :return: Uptime percentage
-        """
-        if not events or total_duration_ms <= 0:
-            return 0.0
-
-        # Track debuff periods for this player
-        uptime_periods = []
-        current_start = None
-
-        for event in events:
-            if event.get("targetName") != player_name:
-                continue
-
-            event_type = event.get("type")
-            timestamp = event.get("timestamp", 0)
-
-            if event_type == "applydebuff":
-                if current_start is None:
-                    current_start = timestamp
-            elif event_type == "removedebuff":
-                if current_start is not None:
-                    uptime_periods.append((current_start, timestamp))
-                    current_start = None
-
-        # If debuff was still active at the end, add the final period
-        if current_start is not None:
-            uptime_periods.append((current_start, total_duration_ms))
-
-        # Calculate total uptime
-        total_uptime_ms = sum(end - start for start, end in uptime_periods)
-        uptime_percentage = (total_uptime_ms / total_duration_ms) * 100
-
-        return round(uptime_percentage, 2)
-
     def analyze_table_data(
         self,
         report_code: str,
@@ -859,6 +821,8 @@ class BossAnalysisBase(ABC):
                     entries = parsed_data["data"]["entries"]
                 elif config.get("data_type") == "Deaths" and "entries" in parsed_data["data"]:
                     entries = parsed_data["data"]["entries"]
+                elif config.get("data_type") == "Survivability" and "players" in parsed_data["data"]:
+                    entries = parsed_data["data"]["players"]
                 else:
                     entries = parsed_data["data"]
 
@@ -871,7 +835,8 @@ class BossAnalysisBase(ABC):
                         if config.get("data_type") == "Debuffs":
                             table_metrics[player_name] = {
                                 "uptime_percentage": round(
-                                    (entry.get("totalUptime", 0) / parsed_data["data"].get("totalTime", 1)) * 100, 2
+                                    (entry.get("totalUptime", 0) / parsed_data["data"].get("totalTime", 1)) * 100,
+                                    2,
                                 ),
                                 "hit_count": entry.get("totalUses", 0),
                             }
@@ -882,7 +847,10 @@ class BossAnalysisBase(ABC):
                                 "overheal": entry.get("overheal", 0),
                                 "hit_count": entry.get(
                                     "hitCount",
-                                    entry.get("tickCount", 1 if entry.get("total", 0) > 0 else 0),
+                                    entry.get(
+                                        "tickCount",
+                                        1 if entry.get("total", 0) > 0 else 0,
+                                    ),
                                 ),
                             }
                         elif config.get("data_type") == "Deaths":
@@ -897,11 +865,38 @@ class BossAnalysisBase(ABC):
                                     "deaths": 1,
                                     "hit_count": 1,
                                 }
+                        elif config.get("data_type") == "Survivability":
+                            # Survivability data returns fight-by-fight survivability percentages
+                            # API returns decimal values (0.0-1.0), convert to percentages (0-100)
+                            fights = entry.get("fights", {})
+                            if fights:
+                                # Filter out None values and convert to float
+                                survivability_values = [float(value) for value in fights.values() if value is not None]
+                                if survivability_values:
+                                    # Convert from decimal to percentage with 2 decimal places
+                                    average_survivability = round(
+                                        (sum(survivability_values) / len(survivability_values)) * 100, 2
+                                    )
+                                else:
+                                    average_survivability = 0.0
+                            else:
+                                average_survivability = 0.0
+
+                            table_metrics[player_name] = {
+                                "survivability_percentage": average_survivability,
+                                "hit_count": len(
+                                    [v for v in fights.values() if v is not None]
+                                ),  # Number of fights with valid data
+                            }
                         else:
                             # For other data types, add all numeric fields
                             metrics = {}
                             for key, value in entry.items():
-                                if isinstance(value, (int, float)) and key not in ["id", "type", "name"]:
+                                if isinstance(value, (int, float)) and key not in [
+                                    "id",
+                                    "type",
+                                    "name",
+                                ]:
                                     metrics[key] = value
                             table_metrics[player_name] = metrics
 
@@ -925,9 +920,18 @@ class BossAnalysisBase(ABC):
                         if config.get("data_type") == "Debuffs":
                             player_entry.update({"uptime_percentage": 0.0, "hit_count": 0})
                         elif config.get("data_type") == "DamageTaken":
-                            player_entry.update({"damage_taken": 0, "total_reduced": 0, "overheal": 0, "hit_count": 0})
+                            player_entry.update(
+                                {
+                                    "damage_taken": 0,
+                                    "total_reduced": 0,
+                                    "overheal": 0,
+                                    "hit_count": 0,
+                                }
+                            )
                         elif config.get("data_type") == "Deaths":
                             player_entry.update({"deaths": 0, "hit_count": 0})
+                        elif config.get("data_type") == "Survivability":
+                            player_entry.update({"survivability_percentage": 0.0, "hit_count": 0})
 
                     unique_players[player_name] = player_entry
                 else:
@@ -1048,9 +1052,24 @@ class BossAnalysisBase(ABC):
 
         name_column = plot_config.get("name_column", "player_name")
         class_column = plot_config.get("class_column", "class")
+        description = plot_config.get("description")
+        invert_change_colors = plot_config.get("invert_change_colors", False)
 
         # Get analysis data
         current_data, previous_dict = self.find_analysis_data(analysis_name, column_key_1, name_column)
+
+        # Get the current result to access fight duration for normalization
+        current_result = None
+        if self.results:
+            # Find the result that contains the current analysis data
+            sorted_reports = sorted(self.results, key=lambda x: x["starttime"], reverse=True)
+            for report in sorted_reports:
+                for analysis in report.get("analysis", []):
+                    if analysis.get("name") == analysis_name:
+                        current_result = report
+                        break
+                if current_result:
+                    break
 
         # Apply role filtering to plot data if specified
         plot_roles = plot_config.get("roles", [])
@@ -1071,6 +1090,20 @@ class BossAnalysisBase(ABC):
 
         df = pd.DataFrame(current_data)
 
+        # Apply duration normalization only to previous data for change calculations
+        if current_result and current_result.get("total_duration"):
+            # Only normalize previous data using its own fight duration for accurate change calculations
+            if previous_dict and previous_fight_duration:
+                normalized_previous_dict = {}
+                duration_30min = previous_fight_duration / (1000 * 60 * 30)
+
+                # Only normalize if it's not a percentage
+                if column_key_1 != "uptime_percentage" and not column_key_1.endswith("_percentage"):
+                    for player_name, value in previous_dict.items():
+                        normalized_previous_dict[player_name] = value / duration_30min
+                    previous_dict = normalized_previous_dict
+                    logger.debug(f"Applied duration normalization to previous data for change calculations for {title}")
+
         # Create appropriate plot type
         if plot_type == "NumberPlot":
             plot = NumberPlot(
@@ -1090,6 +1123,8 @@ class BossAnalysisBase(ABC):
                 class_column=class_column,
                 current_fight_duration=current_fight_duration,
                 previous_fight_duration=previous_fight_duration,
+                description=description,
+                invert_change_colors=invert_change_colors,
             )
         elif plot_type == "PercentagePlot":
             plot = PercentagePlot(
@@ -1109,6 +1144,29 @@ class BossAnalysisBase(ABC):
                 class_column=class_column,
                 current_fight_duration=current_fight_duration,
                 previous_fight_duration=previous_fight_duration,
+                description=description,
+                invert_change_colors=invert_change_colors,
+            )
+        elif plot_type == "SurvivabilityPlot":
+            plot = SurvivabilityPlot(
+                title=title,
+                date=report_date,
+                df=df,
+                previous_data=previous_dict,
+                column_key_1=column_key_1,
+                column_header_1=column_header_1,
+                column_key_2=column_key_2,
+                column_header_2=column_header_2,
+                column_key_3=column_key_3,
+                column_header_3=column_header_3,
+                column_header_4=column_header_4,
+                column_header_5=column_header_5,
+                name_column=name_column,
+                class_column=class_column,
+                current_fight_duration=current_fight_duration,
+                previous_fight_duration=previous_fight_duration,
+                description=description,
+                invert_change_colors=invert_change_colors,
             )
         elif plot_type == "HitCountPlot":
             plot = HitCountPlot(
@@ -1128,6 +1186,8 @@ class BossAnalysisBase(ABC):
                 class_column=class_column,
                 current_fight_duration=current_fight_duration,
                 previous_fight_duration=previous_fight_duration,
+                description=description,
+                invert_change_colors=invert_change_colors,
             )
         else:
             raise ValueError(f"Unknown plot type: {plot_type}")
@@ -1195,9 +1255,8 @@ class BossAnalysisBase(ABC):
                     if roles:
                         df = pd.DataFrame(self._filter_players_by_roles(df.to_dict("records"), roles))
 
-                    # Apply duration normalization if configured
-                    if multi_line_config.get("normalize_by_duration", True):
-                        df = self._normalize_data_by_duration(df, column_key, result.get("total_duration"))
+                    # Duration normalization is not applied to progress plots
+                    # as they display normal values, not changes
 
                     date_data[date] = df
                     break
@@ -1461,8 +1520,8 @@ class BossAnalysisBase(ABC):
             logger.warning(f"Column '{column_key}' not found in data, skipping normalization")
             return df
 
-        # Convert duration to hours for normalization (more appropriate for 3-hour raid sessions)
-        duration_hours = total_duration_ms / (1000 * 60 * 60)
+        # Convert duration to 30-minute units for normalization (more appropriate for raid encounters)
+        duration_30min = total_duration_ms / (1000 * 60 * 30)
 
         # Universal normalization: normalize all numeric columns except percentage metrics
         if column_key == "uptime_percentage" or column_key.endswith("_percentage"):
@@ -1472,9 +1531,9 @@ class BossAnalysisBase(ABC):
             # Deaths are typically not normalized by duration as they represent discrete events
             logger.debug(f"Skipping normalization for death count metric '{column_key}'")
         else:
-            # For all other numeric metrics, normalize to "per hour"
-            logger.debug(f"Applying duration normalization to metric '{column_key}' (per hour)")
-            df_normalized[column_key] = df_normalized[column_key] / duration_hours
+            # For all other numeric metrics, normalize to "per 30 minutes"
+            logger.debug(f"Applying duration normalization to metric '{column_key}' (per 30 minutes)")
+            df_normalized[column_key] = df_normalized[column_key] / duration_30min
             df_normalized[f"{column_key}_original"] = df[column_key]  # Keep original for reference
 
         return df_normalized

@@ -22,7 +22,7 @@ class TestExampleBossAnalysis:
 
     def test_config_structure(self, analysis):
         """Test CONFIG structure."""
-        assert len(analysis.CONFIG) == 8
+        assert len(analysis.CONFIG) == 11
 
         # Check that all configs have required structure
         for config in analysis.CONFIG:
@@ -46,8 +46,9 @@ class TestExampleBossAnalysis:
         """Test debuff uptime configuration."""
         config = next((c for c in analysis.CONFIG if c["name"] == "Debuff Uptime"), None)
         assert config is not None
-        assert config["analysis"]["type"] == "debuff_uptime"
-        assert config["analysis"]["ability_id"] == 67890.0
+        assert config["analysis"]["type"] == "table_data"
+        assert config["analysis"]["data_type"] == "Debuffs"
+        assert config["analysis"]["ability_id"] == 67890
         assert "roles" not in config  # All roles
         assert config["plot"]["type"] == "PercentagePlot"
         assert config["plot"]["column_header_2"] == "Uptime %"
@@ -66,8 +67,9 @@ class TestExampleBossAnalysis:
         """Test HitCountPlot configuration."""
         config = next((c for c in analysis.CONFIG if c["name"] == "Damage Taken from Fire"), None)
         assert config is not None
-        assert config["analysis"]["type"] == "damage_taken_from_ability"
-        assert config["analysis"]["ability_id"] == 33333.0
+        assert config["analysis"]["type"] == "table_data"
+        assert config["analysis"]["data_type"] == "DamageTaken"
+        assert config["analysis"]["ability_id"] == 33333
         assert config["plot"]["type"] == "HitCountPlot"
         assert config["plot"]["column_header_2"] == "Hits"
         assert config["plot"]["column_header_3"] == "Damage Taken"
@@ -93,11 +95,14 @@ class TestExampleBossAnalysis:
 
         # All roles (no role restriction)
         all_roles_configs = [c for c in analysis.CONFIG if "roles" not in c]
-        assert len(all_roles_configs) == 3
+        assert len(all_roles_configs) == 6
         names = [c["name"] for c in all_roles_configs]
         assert "Debuff Uptime" in names
         assert "Damage Taken from Fire" in names
         assert "Low Tolerance Debuff" in names
+        assert "Deaths from Fire Mechanic" in names
+        assert "All Deaths" in names
+        assert "Player Survivability" in names
 
     def test_filter_expressions(self, analysis):
         """Test filter expressions in configurations."""
@@ -117,7 +122,8 @@ class TestExampleBossAnalysis:
         low_tolerance_config = next((c for c in analysis.CONFIG if c["name"] == "Low Tolerance Debuff"), None)
         assert low_tolerance_config is not None
         assert low_tolerance_config["analysis"]["wipe_cutoff"] == 2
-        assert low_tolerance_config["analysis"]["type"] == "debuff_uptime"
+        assert low_tolerance_config["analysis"]["type"] == "table_data"
+        assert low_tolerance_config["analysis"]["data_type"] == "Debuffs"
 
         # Ensure some configs don't have explicit wipe cutoff (will use default)
         default_configs = [c for c in analysis.CONFIG if "wipe_cutoff" not in c["analysis"]]
@@ -135,3 +141,35 @@ class TestExampleBossAnalysis:
         assert config is not None
         # Should not have custom title, will default to name
         assert "title" not in config["plot"] or config["plot"].get("title") == config["name"]
+
+    def test_survivability_config(self, analysis):
+        """Test survivability analysis configuration."""
+        config = next((c for c in analysis.CONFIG if c["name"] == "Player Survivability"), None)
+        assert config is not None
+        assert config["analysis"]["type"] == "table_data"
+        assert config["analysis"]["data_type"] == "Survivability"
+        assert config["analysis"]["ability_id"] == 0  # Not used for survivability
+        assert config["analysis"]["wipe_cutoff"] == 4
+        assert "roles" not in config  # All roles
+        assert config["plot"]["type"] == "SurvivabilityPlot"
+        assert config["plot"]["column_key_1"] == "survivability_percentage"
+        assert config["plot"]["column_header_2"] == "Survivability %"
+        assert config["plot"]["description"] == "Average percentage of fight time survived across all attempts"
+
+    def test_deaths_configs(self, analysis):
+        """Test deaths analysis configurations."""
+        # Deaths from specific ability
+        fire_deaths_config = next((c for c in analysis.CONFIG if c["name"] == "Deaths from Fire Mechanic"), None)
+        assert fire_deaths_config is not None
+        assert fire_deaths_config["analysis"]["type"] == "table_data"
+        assert fire_deaths_config["analysis"]["data_type"] == "Deaths"
+        assert fire_deaths_config["analysis"]["ability_id"] == 33333
+        assert fire_deaths_config["analysis"]["wipe_cutoff"] == 5
+
+        # All deaths
+        all_deaths_config = next((c for c in analysis.CONFIG if c["name"] == "All Deaths"), None)
+        assert all_deaths_config is not None
+        assert all_deaths_config["analysis"]["type"] == "table_data"
+        assert all_deaths_config["analysis"]["data_type"] == "Deaths"
+        assert "ability_id" not in all_deaths_config["analysis"]  # No ability filter
+        assert all_deaths_config["analysis"]["wipe_cutoff"] == 3

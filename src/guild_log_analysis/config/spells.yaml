@@ -1,0 +1,533 @@
+DEATHKNIGHT:
+  - spellID: 48707
+    name: Anti-Magic Shell
+    cooldown: 60
+    type: defensive
+  - spellID: 48743
+    name: Death Pact
+    cooldown: 120
+    type: defensive
+  - spellID: 48792
+    name: Icebound Fortitude
+    cooldown: 120
+    type: defensive
+  - spellID: 51052
+    name: Anti-Magic Zone
+    cooldown: 120
+    type: raid_defensive
+
+DEMONHUNTER:
+  - spellID: 198589
+    name: Blur
+    cooldown: 60
+    type: defensive
+  - spellID: 206803
+    name: Rain from Above
+    cooldown: 90
+    type: defensive
+  - spellID: 196718
+    name: Darkness
+    cooldown: 300
+    type: raid_defensive
+
+DRUID:
+  - spellID: 22812
+    name: Barkskin
+    cooldown: 60
+    type: defensive
+  - spellID: 102351
+    name: Cenarion Ward
+    cooldown: 30
+    type: heal
+  - spellID: 740
+    name: Tranquility
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 203651
+    name: Overgrowth
+    cooldown: 60
+    type: heal
+  - spellID: 33891
+    name: Incarnation Tree of Life
+    cooldown: 180
+    type: heal
+  - spellID: 473909
+    name: Ancient of Lore
+    cooldown: 90
+    type: heal
+  - spellID: 392160
+    name: Invigorate
+    cooldown: 20
+    type: heal
+  - spellID: 197721
+    name: Flourish
+    cooldown: 60
+    type: heal
+  - spellID: 102342
+    name: Ironbark
+    cooldown: 90
+    type: external
+  - spellID: 61336
+    name: Survival Instincts
+    cooldown: 180
+    type: defensive
+  - spellID: 22842
+    name: Frenzied Regeneration
+    cooldown: 36
+    type: heal
+  - spellID: 108238
+    name: Renewal
+    cooldown: 90
+    type: heal
+  - spellID: 124974
+    name: Nature's Vigil
+    cooldown: 90
+    type: raid_defensive
+  - spellID: 204066
+    name: Lunar Beam
+    cooldown: 60
+    type: heal
+  - spellID: 377847
+    name: Well-Honed Instincts
+    cooldown: 120
+    type: defensive
+  - spellID: 102693
+    name: Grove Guardians
+    cooldown: 20
+    type: heal
+
+EVOKER:
+  - spellID: 368412
+    name: Time of Need
+    cooldown: 60
+    type: external
+  - spellID: 363534
+    name: Rewind
+    cooldown: 240
+    type: raid_defensive
+  - spellID: 357170
+    name: Time Dilation
+    cooldown: 60
+    type: external
+  - spellID: 367226
+    name: Spiritbloom
+    cooldown: 30
+    type: heal
+  - spellID: 355936
+    name: Dream Breath
+    cooldown: 30
+    type: heal
+  - spellID: 374348
+    name: Renewing Blaze
+    cooldown: 90
+    type: defensive
+  - spellID: 374227
+    name: Zephyr
+    cooldown: 120
+    type: raid_defensive
+  - spellID: 363916
+    name: Obsidian Scales
+    cooldown: 90
+    type: defensive
+  - spellID: 360995
+    name: Verdant Embrace
+    cooldown: 24
+    type: heal
+  - spellID: 360827
+    name: Blistering Scales
+    cooldown: 30
+    type: external
+  - spellID: 355913
+    name: Emerald Blossom
+    cooldown: 30
+    type: heal
+  - spellID: 370960
+    name: Emerald Communion
+    cooldown: 180
+    type: heal
+  - spellID: 359816
+    name: Dream Flight
+    cooldown: 120
+    type: heal
+
+HUNTER:
+  - spellID: 53480
+    name: Roar of Sacrifice
+    cooldown: 60
+    type: external
+  - spellID: 109304
+    name: Exhilaration
+    cooldown: 120
+    type: heal
+  - spellID: 264735
+    name: Survival of the Fittest
+    cooldown: 120
+    type: defensive
+  - spellID: 472707
+    name: Shell Cover
+    cooldown: 90
+    type: defensive
+
+MAGE:
+  - spellID: 110959
+    name: Greater Invisibility
+    cooldown: 120
+    type: defensive
+  - spellID: 342245
+    name: Alter Time
+    cooldown: 60
+    type: defensive
+  - spellID: 11426
+    name: Ice Barrier
+    cooldown: 25
+    type: defensive
+  - spellID: 235313
+    name: Blazing Barrier
+    cooldown: 25
+    type: defensive
+  - spellID: 235450
+    name: Prismatic Barrier
+    cooldown: 25
+    type: defensive
+  - spellID: 55342
+    name: Mirror Image
+    cooldown: 120
+    type: defensive
+  - spellID: 414660
+    name: Mass Barrier
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 86949
+    name: Cauterize
+    cooldown: 300
+    type: defensive
+  - spellID: 235219
+    name: Cold Snap
+    cooldown: 300
+    type: defensive
+  - spellID: 414658
+    name: Ice Cold
+    cooldown: 240
+    type: defensive
+
+MONK:
+  - spellID: 202162
+    name: Avert Harm
+    cooldown: 45
+    type: raid_defensive
+  - spellID: 388615
+    name: Restoral
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 115310
+    name: Revival
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 116849
+    name: Life Cocoon
+    cooldown: 120
+    type: external
+  - spellID: 322118
+    name: Invoke Yu'lon the Jade Serpent
+    cooldown: 120
+    type: heal
+  - spellID: 325197
+    name: Invoke Chi-Ji the Red Crane
+    cooldown: 120
+    type: heal
+  - spellID: 122470
+    name: Touch of Karma
+    cooldown: 90
+    type: defensive
+  - spellID: 115203
+    name: Fortifying Brew
+    cooldown: 120
+    type: defensive
+  - spellID: 122783
+    name: Diffuse Magic
+    cooldown: 90
+    type: defensive
+  - spellID: 122278
+    name: Dampen Harm
+    cooldown: 120
+    type: defensive
+  - spellID: 115176
+    name: Zen Meditation
+    cooldown: 300
+    type: defensive
+  - spellID: 443028
+    name: Celestial Conduit
+    cooldown: 90
+    type: heal
+
+PALADIN:
+  - spellID: 403876
+    name: Divine Protection
+    cooldown: 90
+    type: defensive
+  - spellID: 498
+    name: Divine Protection
+    cooldown: 60
+    type: defensive
+  - spellID: 199448
+    name: Ultimate Sacrifice
+    cooldown: 120
+    type: external
+  - spellID: 148039
+    name: Barrier of Faith
+    cooldown: 30
+    type: external
+  - spellID: 31821
+    name: Aura Mastery
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 114165
+    name: Holy Prism
+    cooldown: 30
+    type: heal
+  - spellID: 216331
+    name: Avenging Crusader
+    cooldown: 60
+    type: heal
+  - spellID: 200652
+    name: Tyr's Deliverance
+    cooldown: 90
+    type: heal
+  - spellID: 633
+    name: Lay on Hands
+    cooldown: 600
+    type: heal
+  - spellID: 6940
+    name: Blessing of Sacrifice
+    cooldown: 120
+    type: external
+  - spellID: 1022
+    name: Blessing of Protection
+    cooldown: 300
+    type: external
+  - spellID: 204018
+    name: Blessing of Spellwarding
+    cooldown: 300
+    type: external
+  - spellID: 414170
+    name: Daybreak
+    cooldown: 60
+    type: heal
+  - spellID: 414273
+    name: Hand of Divinity
+    cooldown: 90
+    type: heal
+  - spellID: 432472
+    name: Holy Bulwark
+    cooldown: 60
+    type: external
+  - spellID: 384376
+    name: Avenging Wrath
+    cooldown: 120
+    type: heal
+
+PRIEST:
+  - spellID: 215982
+    name: Spirit of the Redeemer
+    cooldown: 120
+    type: defensive
+  - spellID: 328530
+    name: Divine Ascension
+    cooldown: 60
+    type: defensive
+  - spellID: 197268
+    name: Ray of Hope
+    cooldown: 90
+    type: external
+  - spellID: 19236
+    name: Desperate Prayer
+    cooldown: 90
+    type: heal
+  - spellID: 372760
+    name: Divine Word
+    cooldown: 60
+    type: heal
+  - spellID: 62618
+    name: Power Word Barrier
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 472433
+    name: Evangelism
+    cooldown: 90
+    type: heal
+  - spellID: 33206
+    name: Pain Suppression
+    cooldown: 180
+    type: external
+  - spellID: 372835
+    name: Lightwell
+    cooldown: 120
+    type: heal
+  - spellID: 391124
+    name: Restitution
+    cooldown: 600
+    type: defensive
+  - spellID: 200183
+    name: Apotheosis
+    cooldown: 120
+    type: heal
+  - spellID: 64843
+    name: Divine Hymn
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 34861
+    name: Holy Word Sanctify
+    cooldown: 60
+    type: heal
+  - spellID: 47788
+    name: Guardian Spirit
+    cooldown: 180
+    type: external
+  - spellID: 2050
+    name: Holy Word Serenity
+    cooldown: 60
+    type: heal
+  - spellID: 47585
+    name: Dispersion
+    cooldown: 120
+    type: defensive
+  - spellID: 108968
+    name: Void Shift
+    cooldown: 300
+    type: external
+  - spellID: 373481
+    name: Power Word Life
+    cooldown: 15
+    type: heal
+  - spellID: 120644
+    name: Halo
+    cooldown: 60
+    type: heal
+  - spellID: 120517
+    name: Halo
+    cooldown: 60
+    type: heal
+  - spellID: 15286
+    name: Vampiric Embrace
+    cooldown: 120
+    type: raid_defensive
+  - spellID: 271466
+    name: Luminous Barrier
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 421453
+    name: Ultimate Penitence
+    cooldown: 240
+    type: heal
+
+ROGUE:
+  - spellID: 1856
+    name: Vanish
+    cooldown: 120
+    type: defensive
+  - spellID: 1966
+    name: Feint
+    cooldown: 15
+    type: defensive
+  - spellID: 31224
+    name: Cloak of Shadows
+    cooldown: 120
+    type: defensive
+  - spellID: 185311
+    name: Crimson Vial
+    cooldown: 30
+    type: heal
+  - spellID: 31230
+    name: Cheat Death
+    cooldown: 360
+    type: defensive
+  - spellID: 5277
+    name: Evasion
+    cooldown: 120
+    type: defensive
+
+SHAMAN:
+  - spellID: 108280
+    name: Healing Tide Totem
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 98008
+    name: Spirit Link Totem
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 198838
+    name: Earthen Wall Totem
+    cooldown: 60
+    type: raid_defensive
+  - spellID: 207399
+    name: Ancestral Protection Totem
+    cooldown: 300
+    type: raid_defensive
+  - spellID: 157153
+    name: Cloudburst Totem
+    cooldown: 45
+    type: heal
+  - spellID: 197995
+    name: Wellspring
+    cooldown: 20
+    type: heal
+  - spellID: 108271
+    name: Astral Shift
+    cooldown: 120
+    type: defensive
+  - spellID: 198103
+    name: Earth Elemental
+    cooldown: 300
+    type: defensive
+  - spellID: 30884
+    name: Nature's Guardian
+    cooldown: 45
+    type: defensive
+  - spellID: 5394
+    name: Healing Stream Totem
+    cooldown: 30
+    type: heal
+  - spellID: 108270
+    name: Stone Bulwark Totem
+    cooldown: 180
+    type: defensive
+
+WARLOCK:
+  - spellID: 104773
+    name: Unending Resolve
+    cooldown: 180
+    type: defensive
+  - spellID: 108416
+    name: Dark Pact
+    cooldown: 60
+    type: defensive
+  - spellID: 452930
+    name: Demonic Healthstone
+    cooldown: 60
+    type: heal
+
+WARRIOR:
+  - spellID: 118038
+    name: Die by the Sword
+    cooldown: 120
+    type: defensive
+  - spellID: 97462
+    name: Rallying Cry
+    cooldown: 180
+    type: raid_defensive
+  - spellID: 236273
+    name: Duel
+    cooldown: 60
+    type: external
+  - spellID: 213871
+    name: Bodyguard
+    cooldown: 15
+    type: external
+  - spellID: 184364
+    name: Enraged Regeneration
+    cooldown: 120
+    type: defensive
+  - spellID: 202168
+    name: Impending Victory
+    cooldown: 25
+    type: heal

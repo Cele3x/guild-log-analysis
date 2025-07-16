@@ -77,6 +77,8 @@ class BaseTablePlot(ABC):
         current_fight_duration: Optional[int] = None,
         previous_fight_duration: Optional[int] = None,
         show_totals: bool = True,
+        description: Optional[str] = None,
+        invert_change_colors: bool = False,
     ) -> None:
         """
         Initialize the plot.
@@ -98,6 +100,8 @@ class BaseTablePlot(ABC):
         :param current_fight_duration: Current total fight duration in milliseconds
         :param previous_fight_duration: Previous total fight duration in milliseconds
         :param show_totals: Whether to show totals row at bottom
+        :param description: Optional description to display instead of date
+        :param invert_change_colors: If True, invert change colors (negative=green, positive=red)
         """
         self.title = title
         self.date = date
@@ -116,6 +120,8 @@ class BaseTablePlot(ABC):
         self.current_fight_duration = current_fight_duration
         self.previous_fight_duration = previous_fight_duration
         self.show_totals = show_totals
+        self.description = description
+        self.invert_change_colors = invert_change_colors
 
         self._setup_plot_style()
         self._prepare_data()
@@ -213,8 +219,37 @@ class BaseTablePlot(ABC):
                 return idx
         return None
 
+    def _filter_data_rows(self) -> pd.DataFrame:
+        """
+        Filter out rows where data doesn't exist (only show rows with actual data).
+
+        Keeps rows where:
+        - Primary column value is non-zero, OR
+        - Previous value exists and change would be non-zero
+
+        :return: Filtered DataFrame
+        """
+        # Create a mask to identify rows with actual data
+        has_current_data = (self.df[self.column_key_1].notna()) & (self.df[self.column_key_1] != 0)
+
+        # Check for previous data that would result in non-zero change
+        has_previous_data = pd.Series(False, index=self.df.index)
+        for idx, row in self.df.iterrows():
+            player_name = row[self.name_column]
+            previous_value = self.previous_data.get(player_name)
+            if previous_value is not None and previous_value != 0:
+                has_previous_data.loc[idx] = True
+
+        # Keep rows that have either current data or previous data
+        data_mask = has_current_data | has_previous_data
+
+        return self.df[data_mask].copy()
+
     def _prepare_data(self) -> None:
         """Prepare and sort data for visualization."""
+        # Filter out rows where data doesn't exist (only show rows with actual data)
+        self.df = self._filter_data_rows()
+
         # Sort by value column in descending order
         self.df = self.df.sort_values(self.column_key_1, ascending=False)
 
@@ -261,12 +296,32 @@ class BaseTablePlot(ABC):
         """
         pass
 
+    def _normalize_value_for_change_calculation(self, value: float) -> float:
+        """
+        Normalize a value for change calculation using current fight duration.
+
+        :param value: Value to normalize
+        :returns: Normalized value (per 30 minutes)
+        """
+        if (
+            self.current_fight_duration is None
+            or self.current_fight_duration <= 0
+            or self.column_key_1 == "uptime_percentage"
+            or self.column_key_1.endswith("_percentage")
+        ):
+            # Don't normalize percentage values or if duration is invalid
+            return value
+
+        # Convert to 30-minute units and normalize
+        duration_30min = self.current_fight_duration / (1000 * 60 * 30)
+        return value / duration_30min
+
     def _calculate_change(self, current: Any, previous: Any) -> tuple[str, str]:
         """
         Optimized change calculation with better performance.
 
         :param current: Current value
-        :param previous: Previous value
+        :param previous: Previous value (already normalized)
         :returns: Tuple of (change_text, change_color)
         """
         if pd.isna(previous):
@@ -280,9 +335,12 @@ class BaseTablePlot(ABC):
 
             # Calculate change based on plot type
             if isinstance(self, PercentagePlot):
-                change = round(current - previous, 2)
+                # For percentage plots, calculate difference in percentage points (no rounding in calculation)
+                change = current - previous
             else:
-                change = self._calculate_numeric_change(current, previous)
+                # For all other plot types, normalize current value and calculate percentage change
+                normalized_current = self._normalize_value_for_change_calculation(current)
+                change = self._calculate_numeric_change(normalized_current, previous)
 
             # Format and return the change
             return self._format_change(change)
@@ -291,43 +349,144 @@ class BaseTablePlot(ABC):
             return "N/A", PlotColors.TEXT_SECONDARY
 
     def _calculate_numeric_change(self, current: float, previous: float) -> float:
-        """Calculate numeric change with duration adjustment if applicable."""
-        if isinstance(self, NumberPlot) and self.current_fight_duration and self.previous_fight_duration:
-            # Rate-based calculation for NumberPlot with durations
-            current_rate = current / (self.current_fight_duration / 60000)
-            previous_rate = previous / (self.previous_fight_duration / 60000)
-            rate_difference = current_rate - previous_rate
-            return float(rate_difference * (self.current_fight_duration / 60000))
-        else:
-            # Simple difference
-            return float(current - previous)
+        """Calculate percentage change instead of absolute change."""
+        # Handle zero current values - treat as no current data
+        if current == 0 or abs(current) < 0.01:
+            # If current value is 0, treat as if player had no current data
+            # This will be handled by the caller to show no change indicator
+            return float("inf")  # Special marker for "no current data"
+
+        # Handle zero previous values - treat as no previous data
+        if previous == 0:
+            # If previous value is 0, treat as if player had no previous data
+            # This will be handled by the caller to show no change indicator
+            return float("inf")  # Special marker for "no previous data"
+
+        # For very small previous values (< 0.01), treat as effectively zero to avoid extreme percentages
+        if abs(previous) < 0.01:
+            return float("inf")  # Special marker for "no previous data"
+
+        # Calculate percentage change: ((current - previous) / previous) * 100
+        percentage_change = ((current - previous) / previous) * 100
+
+        # Cap extreme percentage changes to avoid misleading results
+        # For example, if previous is 0.001 and current is 25.74, that's a 2,574,000% change
+        # which is not meaningful for users
+        if abs(percentage_change) > 999:
+            return 999.0 if percentage_change > 0 else -999.0
+
+        return float(percentage_change)
 
     def _format_change(self, change: float) -> tuple[str, str]:
-        """Format change value with appropriate precision and sign."""
-        # Determine precision based on magnitude
-        abs_change = abs(change)
-        if abs_change >= 1000:
-            precision = 0
-        elif abs_change >= 100:
-            precision = 1
-        elif abs_change >= 1:
-            precision = 2
+        """Format change value as percentage with appropriate precision and sign."""
+        # Handle special case: no previous data (zero or very small previous values)
+        if change == float("inf") or change == float("-inf"):
+            return "", PlotColors.TEXT_SECONDARY
+
+        # For percentage plots, use the existing behavior (difference in percentage points)
+        if isinstance(self, PercentagePlot):
+            # Determine precision based on magnitude
+            abs_change = abs(change)
+            if abs_change >= 100:
+                precision = 1
+            elif abs_change >= 1:
+                precision = 2
+            else:
+                precision = 3
+
+            formatted_change = format_number(change, precision)
+
+            # Remove trailing zeros for percentage plots to match test expectations
+            if "." in formatted_change:
+                formatted_change = formatted_change.rstrip("0").rstrip(".")
+
+            # Add proper sign formatting
+            if change > 0 and not formatted_change.startswith(("+", "-")):
+                formatted_change = f"+ {formatted_change}"
+            elif change < 0 and formatted_change.startswith("-"):
+                formatted_change = formatted_change.replace("-", "- ", 1)
+            elif change == 0:
+                # Use ± ligature for zero changes
+                formatted_change = f"± {formatted_change}"
         else:
-            precision = 3
+            # For all other plot types, format as percentage (rounded to whole numbers)
+            # Round to nearest integer and format as string
+            rounded_change = round(change)
+            formatted_change = str(rounded_change)
 
-        formatted_change = format_number(change, precision)
+            # Add proper sign formatting and percentage symbol
+            if rounded_change > 0:
+                formatted_change = f"+ {formatted_change}%"
+            elif rounded_change < 0:
+                formatted_change = f"- {abs(rounded_change)}%"
+            else:
+                # Use ± ligature for zero changes
+                formatted_change = f"± {formatted_change}%"
 
-        # Remove trailing zeros for percentage plots to match test expectations
-        if isinstance(self, PercentagePlot) and "." in formatted_change:
-            formatted_change = formatted_change.rstrip("0").rstrip(".")
+        return formatted_change, PlotStyleManager.get_change_color(change, self.invert_change_colors)
 
-        # Add proper sign formatting
-        if change > 0 and not formatted_change.startswith(("+", "-")):
-            formatted_change = f"+ {formatted_change}"
-        elif change < 0 and formatted_change.startswith("-"):
-            formatted_change = formatted_change.replace("-", "- ", 1)
+    def _create_empty_plot(self, figsize: Optional[tuple[int, int]] = None) -> plt.Figure:
+        """
+        Create a plot showing "No data to display" message.
 
-        return formatted_change, PlotStyleManager.get_change_color(change)
+        :param figsize: Optional figure size tuple
+        :returns: Matplotlib figure object
+        """
+        if figsize is None:
+            figsize = (8, 4)  # Default size for empty plot
+
+        fig, ax = plt.subplots(figsize=figsize)
+        fig.patch.set_facecolor(PlotColors.BACKGROUND)
+        ax.set_facecolor(PlotColors.BACKGROUND)
+        ax.axis("off")
+
+        # Draw title
+        ax.text(
+            0.5,
+            0.7,
+            self.title,
+            fontsize=22,
+            fontweight="bold",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontfamily=TITLE_FONT,
+        )
+
+        # Draw subtitle (description or date)
+        subtitle_text = self.description if self.description else self.date
+
+        ax.text(
+            0.5,
+            0.6,
+            subtitle_text,
+            fontsize=18,
+            style="italic",
+            color=PlotColors.TEXT_PRIMARY,
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontfamily=TITLE_FONT,
+        )
+
+        # Draw "No data" message
+        ax.text(
+            0.5,
+            0.4,
+            "No data to display",
+            fontsize=16,
+            color=PlotColors.TEXT_SECONDARY,
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontfamily=HEADER_FONT,
+        )
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        return fig
 
     def create_plot(self, figsize: Optional[tuple[int, int]] = None) -> plt.Figure:
         """
@@ -336,15 +495,26 @@ class BaseTablePlot(ABC):
         :param figsize: Optional figure size tuple
         :returns: Matplotlib figure object
         """
+        # Handle empty DataFrame after filtering
+        if self.df.empty:
+            return self._create_empty_plot(figsize)
+
         max_value = self.df[self.column_key_1].max()
+        # Handle NaN max_value (can happen with all-zero data)
+        if pd.isna(max_value):
+            max_value = 0
+
         columns = self._build_dynamic_columns()
         table_width = self._calculate_table_width(columns)
 
         if figsize is None:
             total_rows = len(self.df) + (1 if self.show_totals else 0)
+            # Ensure minimum figure height to avoid matplotlib issues, but only for very small datasets
+            calculated_height = int(total_rows * ROW_HEIGHT_MULTIPLIER)
+            min_height = 2 if total_rows <= 1 else calculated_height
             figsize = (
                 table_width + FIGURE_PADDING,
-                int(total_rows * ROW_HEIGHT_MULTIPLIER),
+                max(min_height, calculated_height),
             )
 
         fig, ax = plt.subplots(figsize=figsize)
@@ -386,7 +556,7 @@ class BaseTablePlot(ABC):
         return positions
 
     def _draw_title_and_date(self, ax: plt.Axes, table_width: float) -> None:
-        """Draw title and date with optimized positioning."""
+        """Draw title and subtitle (description or date) with optimized positioning."""
         title_y = float(len(self.df)) + 1.15
         center_x = table_width / 2
 
@@ -400,10 +570,14 @@ class BaseTablePlot(ABC):
             ha="center",
             fontfamily=TITLE_FONT,
         )
+
+        # Use description if provided, otherwise use date
+        subtitle_text = self.description if self.description else self.date
+
         ax.text(
             center_x,
             title_y - 0.4,
-            self.date,
+            subtitle_text,
             fontsize=18,
             style="italic",
             color=PlotColors.TEXT_PRIMARY,
@@ -875,6 +1049,40 @@ class PercentagePlot(BaseTablePlot):
         if max_value == 0:
             return 0.0
         return float(value) / float(max_value)
+
+
+class SurvivabilityPlot(PercentagePlot):
+    """Plot for displaying survivability percentage data."""
+
+    def _get_value_display(self, value: Any) -> str:
+        """Format survivability percentage for display with 2 decimal places."""
+        return format_percentage(value, decimal_places=2)
+
+    def _format_change(self, change: float) -> tuple[str, str]:
+        """Format change value for survivability with 2 decimal places."""
+        # Handle special case: no previous data (zero or very small previous values)
+        if change == float("inf") or change == float("-inf"):
+            return "", PlotColors.TEXT_SECONDARY
+
+        # For survivability plots, use percentage point difference with 2 decimal places
+        if change > 0:
+            change_text = f"+ {change:.2f}%"
+            color = PlotColors.POSITIVE_CHANGE_COLOR
+        elif change < 0:
+            change_text = f"- {abs(change):.2f}%"
+            color = PlotColors.NEGATIVE_CHANGE_COLOR
+        else:
+            change_text = f"± {change:.2f}%"
+            color = PlotColors.ZERO_CHANGE_COLOR
+
+        # Apply color inversion if specified
+        if self.invert_change_colors:
+            if color == PlotColors.POSITIVE_CHANGE_COLOR:
+                color = PlotColors.NEGATIVE_CHANGE_COLOR
+            elif color == PlotColors.NEGATIVE_CHANGE_COLOR:
+                color = PlotColors.POSITIVE_CHANGE_COLOR
+
+        return change_text, color
 
 
 class HitCountPlot(BaseTablePlot):

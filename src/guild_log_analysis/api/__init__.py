@@ -3,14 +3,9 @@
 from .auth import OAuthAuthenticator, TokenManager, get_access_token
 from .client import CacheManager, RateLimiter, WarcraftLogsAPIClient
 from .exceptions import (
-    AnalysisError,
     APIError,
     AuthenticationError,
-    CacheError,
     ConfigurationError,
-    DataNotFoundError,
-    InvalidDataError,
-    PlotError,
     RateLimitError,
     WoWAnalysisError,
 )
@@ -26,10 +21,5 @@ __all__ = [
     "APIError",
     "AuthenticationError",
     "RateLimitError",
-    "CacheError",
-    "AnalysisError",
-    "DataNotFoundError",
-    "InvalidDataError",
-    "PlotError",
     "ConfigurationError",
 ]

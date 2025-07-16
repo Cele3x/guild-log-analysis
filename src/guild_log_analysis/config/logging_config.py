@@ -72,13 +72,3 @@ def setup_logging(settings: Optional[Settings] = None) -> None:
     # Log the configuration
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured - Level: {settings.log_level}, File: {log_file_path}")
-
-
-def get_logger(name: str) -> logging.Logger:
-    """
-    Get a logger instance with the given name.
-
-    :param name: Logger name (typically __name__)
-    :returns: Configured logger instance
-    """
-    return logging.getLogger(name)

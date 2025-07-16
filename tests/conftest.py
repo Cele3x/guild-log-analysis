@@ -15,9 +15,20 @@ from src.guild_log_analysis.api import WarcraftLogsAPIClient
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_test_environment():
-    """Configure test environment variables."""
-    # Set output directory for tests to keep plots in tests folder
+    """
+    Configure test environment variables.
+
+    Sets up test environment to use tests/output/ directory for all test outputs
+    including plots, cache, and logs. This isolates test data from production data.
+    """
+    # Set output directory for tests to keep all test outputs in tests/output/
     os.environ["OUTPUT_DIRECTORY"] = "tests"
+
+    # Ensure test output directories exist
+    test_output_dirs = ["tests/output/plots", "tests/output/cache", "tests/output/logs"]
+
+    for directory in test_output_dirs:
+        os.makedirs(directory, exist_ok=True)
 
 
 @pytest.fixture

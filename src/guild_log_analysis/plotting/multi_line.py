@@ -202,7 +202,11 @@ class MultiLinePlot:
         date_to_position = {date: i for i, date in enumerate(sorted_dates)}
 
         # Sort players by attendance for consistent plotting and legend order
-        players_by_attendance = sorted(self.player_data.items(), key=lambda item: item[1]["attendance"], reverse=True)
+        players_by_attendance = sorted(
+            self.player_data.items(),
+            key=lambda item: item[1]["attendance"],
+            reverse=True,
+        )
 
         # Plot each player's line
         for player, data in players_by_attendance:

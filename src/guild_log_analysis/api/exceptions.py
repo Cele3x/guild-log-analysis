@@ -71,36 +71,6 @@ class RateLimitError(APIError):
         self.retry_after = retry_after
 
 
-class CacheError(WoWAnalysisError):
-    """Exception raised for cache-related errors."""
-
-    pass
-
-
-class AnalysisError(WoWAnalysisError):
-    """Exception raised for analysis-related errors."""
-
-    pass
-
-
-class DataNotFoundError(AnalysisError):
-    """Exception raised when expected data is not found."""
-
-    pass
-
-
-class InvalidDataError(AnalysisError):
-    """Exception raised when data is invalid or corrupted."""
-
-    pass
-
-
-class PlotError(WoWAnalysisError):
-    """Exception raised for plotting-related errors."""
-
-    pass
-
-
 class ConfigurationError(WoWAnalysisError):
     """Exception raised for configuration-related errors."""
 

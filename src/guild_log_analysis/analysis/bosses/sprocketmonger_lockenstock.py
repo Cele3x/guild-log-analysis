@@ -23,6 +23,21 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
 
     CONFIG = [
         {
+            "name": "Wire Transfer",
+            "analysis": {
+                "type": "table_data",
+                "ability_id": 466235,
+                "data_type": "DamageTaken",
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "description": "Elektrisierte Flächen",
+                "column_key_1": "damage_taken",
+                "column_header_2": "Damage",
+                "invert_change_colors": True,
+            },
+        },
+        {
             "name": "Blazing Beam Deaths",
             "analysis": {
                 "type": "table_data",
@@ -31,9 +46,10 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             },
             "plot": {
                 "type": "NumberPlot",
-                "title": "Blazing Beam Deaths",
+                "description": "Kleine Feuer-Beams",
                 "column_key_1": "deaths",
                 "column_header_2": "Deaths",
+                "invert_change_colors": True,
             },
         },
         {
@@ -45,13 +61,14 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             },
             "plot": {
                 "type": "NumberPlot",
-                "title": "Jumbo Void Beam Deaths",
+                "description": "Große Void-Beams",
                 "column_key_1": "deaths",
                 "column_header_2": "Deaths",
+                "invert_change_colors": True,
             },
         },
         {
-            "name": "Screw Up's",
+            "name": "Screwed!",
             "analysis": {
                 "type": "table_data",
                 "ability_id": 1217261,
@@ -59,13 +76,14 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             },
             "plot": {
                 "type": "HitCountPlot",
-                "title": "Screw Up's",
+                "description": "Bohrer",
                 "column_key_1": "hit_count",
-                "column_header_1": "Hits",
+                "column_header_2": "Hits",
+                "invert_change_colors": True,
             },
         },
         {
-            "name": "Fire Traps Triggered",
+            "name": "Fire Traps",
             "analysis": {
                 "type": "table_data",
                 "ability_id": 471308,
@@ -73,22 +91,25 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             },
             "plot": {
                 "type": "HitCountPlot",
-                "title": "Fire Traps Triggered",
+                "description": "Fallen auf den Fließbändern",
                 "column_key_1": "hit_count",
-                "column_header_1": "Hits",
+                "column_header_2": "Hits",
+                "invert_change_colors": True,
             },
         },
         {
-            "name": "Electrified",
+            "name": "Rocket Barrage",
             "analysis": {
                 "type": "table_data",
-                "ability_id": 466235,
+                "ability_id": 1216661,
                 "data_type": "DamageTaken",
             },
             "plot": {
-                "type": "NumberPlot",
-                "column_key_1": "damage_taken",
-                "column_header_1": "Damage",
+                "type": "HitCountPlot",
+                "description": "Große Raketen",
+                "column_key_1": "hit_count",
+                "column_header_2": "hits",
+                "invert_change_colors": True,
             },
         },
         {
@@ -99,25 +120,55 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                 "damage_ability_id": 1219047,  # Polarized Catastro-Blast
                 "correlation_window_ms": 1000,
                 "min_victims_threshold": 3,
-                "wipe_cutoff": 4,
             },
             "plot": {
                 "type": "NumberPlot",
+                "description": "Mine mit falscher Polarität ausgelöst",
                 "column_key_1": "wrong_mine_triggers",
-                "column_header_1": "Triggers",
+                "column_header_2": "Triggers",
+                "invert_change_colors": True,
             },
         },
         {
             "name": "Polarization Blast Hits",
             "analysis": {
-                "type": "table_data",
+                "type": "polarization_blast_hits_analysis",
                 "ability_id": 1216989,
-                "data_type": "DamageTaken",
+                "grouping_window_ms": 10000,
             },
             "plot": {
                 "type": "NumberPlot",
-                "column_key_1": "damage_taken",
-                "column_header_1": "Damage",
+                "description": "Zusammenstoß mit Spieler anderer Polarität",
+                "column_key_1": "polarization_blast_hits",
+                "column_header_2": "Hits",
+                "invert_change_colors": True,
+            },
+        },
+        {
+            "name": "Damage to Boss",
+            "analysis": {
+                "type": "damage_to_actor",
+                "target_game_id": 230583,
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "description": "Verursachter Schaden",
+                "column_key_1": "damage_to_boss",
+                "column_header_2": "Damage",
+            },
+        },
+        {
+            "name": "Survivability",
+            "analysis": {
+                "type": "table_data",
+                "data_type": "Survivability",
+                "ability_id": 0,
+            },
+            "plot": {
+                "type": "SurvivabilityPlot",
+                "description": "Durchschnittliche Überlebensdauer",
+                "column_key_1": "survivability_percentage",
+                "column_header_2": "Survivability",
             },
         },
     ]
@@ -132,7 +183,7 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
         """
         Execute analysis for a single configuration item.
 
-        Overrides base implementation to handle wrong_mine_analysis type.
+        Overrides base implementation to handle custom analysis types.
         """
         analysis_type = config["type"]
 
@@ -140,6 +191,16 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             # Apply role filtering if specified
             filtered_players = self._filter_players_by_roles(report_players, config.get("roles", []))
             return self.analyze_wrong_mine_triggers(
+                report_code=report_code,
+                fight_ids=fight_ids,
+                report_players=filtered_players,
+                config=config,
+                wipe_cutoff=config.get("wipe_cutoff"),
+            )
+        elif analysis_type == "polarization_blast_hits_analysis":
+            # Apply role filtering if specified
+            filtered_players = self._filter_players_by_roles(report_players, config.get("roles", []))
+            return self.analyze_polarization_blast_hits(
                 report_code=report_code,
                 fight_ids=fight_ids,
                 report_players=filtered_players,
@@ -177,28 +238,17 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
         correlation_window_ms = config.get("correlation_window_ms", 1000)
         min_victims_threshold = config.get("min_victims_threshold", 3)
 
-        # Query for player names (for readable results)
-        players_query = """
-        query GetPlayerNames($reportCode: String!) {
-          reportData {
-            report(code: $reportCode) {
-              masterData {
-                actors(type: "Player") {
-                  id
-                  name
-                  server
-                  type
-                  subType
-                }
-              }
-            }
-          }
-        }
-        """
+        # Use default wipe cutoff if not specified
+        if wipe_cutoff is None:
+            from ...config.constants import DEFAULT_WIPE_CUTOFF
+
+            wipe_cutoff = DEFAULT_WIPE_CUTOFF
 
         # Query for debuff applications (applydebuff events)
         debuff_query = """
-        query GetUnstableShrapnelEvents($reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!) {
+        query GetUnstableShrapnelEvents(
+            $reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!, $wipeCutoff: Int!
+        ) {
           reportData {
             report(code: $reportCode) {
               events(
@@ -206,6 +256,7 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                 abilityID: $abilityID,
                 dataType: Debuffs,
                 hostilityType: Friendlies,
+                wipeCutoff: $wipeCutoff,
                 limit: 1000
               ) {
                 data
@@ -218,7 +269,9 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
 
         # Query for damage events
         damage_query = """
-        query GetPolarizedDamageEvents($reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!) {
+        query GetPolarizedDamageEvents(
+            $reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!, $wipeCutoff: Int!
+        ) {
           reportData {
             report(code: $reportCode) {
               events(
@@ -226,6 +279,7 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                 abilityID: $abilityID,
                 dataType: DamageDone,
                 hostilityType: Enemies,
+                wipeCutoff: $wipeCutoff,
                 limit: 1000
               ) {
                 data
@@ -237,21 +291,17 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
         """
 
         try:
-            # Get player names for readable results
-            players_variables = {"reportCode": report_code}
-            players_result = self.api_client.make_request(players_query, players_variables)
-
+            # Use base class method to get player names
             player_names = {}
-            if players_result and "data" in players_result:
-                actors = players_result["data"]["reportData"]["report"]["masterData"]["actors"]
-                for actor in actors:
-                    player_names[actor["id"]] = actor["name"]
+            for player in report_players:
+                player_names[player.get("id")] = player.get("name")
 
             # Get debuff events
             debuff_variables = {
                 "reportCode": report_code,
                 "fightIDs": list(fight_ids),
                 "abilityID": float(debuff_ability_id),
+                "wipeCutoff": wipe_cutoff,
             }
 
             debuff_result = self.api_client.make_request(debuff_query, debuff_variables)
@@ -264,6 +314,7 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                 "reportCode": report_code,
                 "fightIDs": list(fight_ids),
                 "abilityID": float(damage_ability_id),
+                "wipeCutoff": wipe_cutoff,
             }
 
             damage_result = self.api_client.make_request(damage_query, damage_variables)
@@ -274,47 +325,6 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             # Parse events
             debuff_events = debuff_result["data"]["reportData"]["report"]["events"]["data"]
             damage_events = damage_result["data"]["reportData"]["report"]["events"]["data"]
-
-            # Get death events if wipe cutoff is specified
-            wipe_cutoff_timestamps = {}  # fight_id -> timestamp when wipe cutoff reached
-            if wipe_cutoff is not None:
-                death_query = """
-                query GetDeathEvents($reportCode: String!, $fightIDs: [Int]!) {
-                  reportData {
-                    report(code: $reportCode) {
-                      events(
-                        fightIDs: $fightIDs,
-                        dataType: Deaths,
-                        hostilityType: Friendlies,
-                        limit: 1000
-                      ) {
-                        data
-                      }
-                    }
-                  }
-                }
-                """
-
-                death_variables = {
-                    "reportCode": report_code,
-                    "fightIDs": list(fight_ids),
-                }
-
-                death_result = self.api_client.make_request(death_query, death_variables)
-                if death_result and "data" in death_result:
-                    death_events = death_result["data"]["reportData"]["report"]["events"]["data"]
-
-                    # Calculate wipe cutoff timestamp for each fight
-                    death_counts = defaultdict(int)
-                    for death_event in death_events:
-                        if death_event.get("type") == "death":
-                            fight_id = death_event["fight"]
-                            death_counts[fight_id] += 1
-
-                            # Record when wipe cutoff is reached
-                            if death_counts[fight_id] == wipe_cutoff and fight_id not in wipe_cutoff_timestamps:
-                                wipe_cutoff_timestamps[fight_id] = death_event["timestamp"]
-                                logger.debug(f"Wipe cutoff reached in fight {fight_id} at {death_event['timestamp']}ms")
 
             # Track wrong mine triggers per player
             wrong_mine_triggers = defaultdict(int)
@@ -327,11 +337,6 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                     culprit_id = debuff_event["targetID"]
                     fight_id = debuff_event["fight"]
 
-                    # Skip events after wipe cutoff if specified
-                    if wipe_cutoff is not None and fight_id in wipe_cutoff_timestamps:
-                        if debuff_timestamp > wipe_cutoff_timestamps[fight_id]:
-                            continue
-
                     # Find correlated damage events within the time window
                     victims = set()
                     for damage_event in damage_events:
@@ -341,12 +346,6 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                             and damage_event["timestamp"] >= debuff_timestamp
                             and damage_event["timestamp"] <= debuff_timestamp + correlation_window_ms
                         ):
-
-                            # Skip damage events after wipe cutoff if specified
-                            if wipe_cutoff is not None and fight_id in wipe_cutoff_timestamps:
-                                if damage_event["timestamp"] > wipe_cutoff_timestamps[fight_id]:
-                                    continue
-
                             victims.add(damage_event["targetID"])
 
                     # Check if this qualifies as a wrong mine trigger (enough victims)
@@ -401,7 +400,7 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                     }
                 )
 
-            wipe_cutoff_info = f" (wipe cutoff: {wipe_cutoff})" if wipe_cutoff is not None else " (no wipe cutoff)"
+            wipe_cutoff_info = f" (wipe cutoff: {wipe_cutoff})"
             logger.info(
                 f"Analyzed wrong mine triggers: {len(incidents)} total incidents across "
                 f"{len([p for p in player_data if p['wrong_mine_triggers'] > 0])} players{wipe_cutoff_info}"
@@ -410,4 +409,121 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
 
         except Exception as e:
             logger.error(f"Error analyzing wrong mine triggers for report {report_code}: {e}")
+            return []
+
+    def analyze_polarization_blast_hits(
+        self,
+        report_code: str,
+        fight_ids: set[int],
+        report_players: list[dict[str, Any]],
+        config: dict[str, Any],
+        wipe_cutoff: Optional[int] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Analyze polarization blast hits by counting damage events with 10-second grouping.
+
+        Hits that occur within 10 seconds of each other are counted as a single hit
+        to avoid double-counting rapid successive hits on the same player.
+
+        :param report_code: The WarcraftLogs report code
+        :param fight_ids: Set of fight IDs to analyze
+        :param report_players: List of players who participated in the fights
+        :param config: Configuration with ability_id and grouping_window_ms
+        :param wipe_cutoff: Optional wipe cutoff - if None, tracks all events; if set, stops after N deaths
+        :return: List of player data with polarization blast hit counts
+        """
+        ability_id = config["ability_id"]  # 1216989 - Polarization Blast
+        grouping_window_ms = config.get("grouping_window_ms", 10000)  # 10 seconds default
+
+        # Use default wipe cutoff if not specified
+        if wipe_cutoff is None:
+            from ...config.constants import DEFAULT_WIPE_CUTOFF
+
+            wipe_cutoff = DEFAULT_WIPE_CUTOFF
+
+        # Query for damage events
+        damage_query = """
+        query GetPolarizationBlastHits(
+            $reportCode: String!, $fightIDs: [Int]!, $abilityID: Float!, $wipeCutoff: Int!
+        ) {
+          reportData {
+            report(code: $reportCode) {
+              events(
+                fightIDs: $fightIDs,
+                abilityID: $abilityID,
+                dataType: DamageDone,
+                hostilityType: Enemies,
+                wipeCutoff: $wipeCutoff,
+                limit: 1000
+              ) {
+                data
+                nextPageTimestamp
+              }
+            }
+          }
+        }
+        """
+
+        try:
+            # Get damage events
+            damage_variables = {
+                "reportCode": report_code,
+                "fightIDs": list(fight_ids),
+                "abilityID": float(ability_id),
+                "wipeCutoff": wipe_cutoff,
+            }
+
+            damage_result = self.api_client.make_request(damage_query, damage_variables)
+            if not damage_result or "data" not in damage_result:
+                logger.warning(f"No damage events returned for report {report_code}")
+                return []
+
+            damage_events = damage_result["data"]["reportData"]["report"]["events"]["data"]
+
+            # Group hits by player and apply 10-second grouping
+            player_hit_counts = defaultdict(int)
+            player_last_hit_time = defaultdict(dict)  # player_id -> {fight_id -> last_hit_timestamp}
+
+            for event in damage_events:
+                if event.get("type") == "damage":
+                    player_id = event["targetID"]
+                    timestamp = event["timestamp"]
+                    fight_id = event["fight"]
+
+                    # Check if this is a new hit (more than 10 seconds since last hit)
+                    if player_id not in player_last_hit_time:
+                        player_last_hit_time[player_id] = {}
+
+                    last_hit_in_fight = player_last_hit_time[player_id].get(fight_id, 0)
+
+                    # Count as new hit if it's been more than grouping_window_ms since last hit
+                    if timestamp - last_hit_in_fight > grouping_window_ms:
+                        player_hit_counts[player_id] += 1
+                        player_last_hit_time[player_id][fight_id] = timestamp
+
+            # Create player data structure
+            player_data = []
+            for player in report_players:
+                player_id = player.get("id")
+                hit_count = player_hit_counts.get(player_id, 0)
+
+                player_data.append(
+                    {
+                        "player_name": player["name"],
+                        "class": player["type"],
+                        "role": player["role"],
+                        "polarization_blast_hits": hit_count,
+                    }
+                )
+
+            total_hits = sum(player_hit_counts.values())
+            wipe_cutoff_info = f" (wipe cutoff: {wipe_cutoff})"
+            logger.info(
+                f"Analyzed polarization blast hits: {total_hits} total hits across "
+                f"{len([p for p in player_data if p['polarization_blast_hits'] > 0])} players{wipe_cutoff_info}"
+            )
+            return player_data
+
+        except Exception as e:
+            logger.error(f"Error analyzing polarization blast hits for report {report_code}: {e}")
             return []

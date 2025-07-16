@@ -215,6 +215,40 @@ This ensures that generic functionality can be tested without relying on dynamic
 
 Settings loaded via `Settings` class from environment variables with `.env` file support. Key configurations include API URLs, cache settings, output directories, and logging configuration.
 
+#### Spell Data Configuration
+
+Spell information is stored in `src/guild_log_analysis/config/spells.yaml` and contains comprehensive spell data organized by class:
+
+```yaml
+CLASSNAME:
+  - spellID: 12345
+    name: Spell Name
+    cooldown: 60
+    type: defensive
+```
+
+**Spell Types:**
+- `defensive`: Personal defensive cooldowns
+- `heal`: Healing abilities
+- `external`: External defensive/healing abilities
+- `raid_defensive`: Raid-wide defensive abilities
+
+**Usage Example:**
+```python
+from src.guild_log_analysis.config.constants import load_spells_data
+
+spells = load_spells_data()
+if spells:
+    druid_spells = spells.get('DRUID', [])
+    defensive_spells = [spell for spell in druid_spells if spell['type'] == 'defensive']
+```
+
+This data can be used for:
+- Spell cooldown analysis
+- Defensive ability usage tracking
+- Class-specific spell filtering
+- Raid cooldown coordination analysis
+
 ### Error Handling
 
 Custom exceptions in `src/guild_log_analysis/api/exceptions.py` handle different failure scenarios:
@@ -261,21 +295,32 @@ Old boss configurations using deprecated analysis types are automatically conver
 
 ### Universal Duration Normalization
 
-All analysis plots now automatically normalize data by fight duration using the `column_key_1` field:
+Duration normalization is applied only to change calculations to ensure fair comparisons across reports with different fight durations:
 
-**Normalized Metrics:**
-- Count-based metrics (interrupts, hit_count, etc.) → "per hour"
-- Damage-based metrics (damage_taken, damage_to_actor, etc.) → "per hour"
+**Change Normalization:**
+- Previous data is normalized by fight duration for accurate change calculations
+- Count-based metrics (interrupts, hit_count, etc.) → "per 30 minutes" for changes
+- Damage-based metrics (damage_taken, damage_to_actor, etc.) → "per 30 minutes" for changes
 
-**Non-Normalized Metrics:**
-- Percentage metrics (uptime_percentage, etc.) → Already relative
+**Non-Normalized Data:**
+- Current/normal values are displayed without normalization
+- Progress plots show actual values, not normalized values
+- Percentage metrics (uptime_percentage, etc.) → Already relative, no normalization needed
 - Death counts → Discrete events, not time-dependent
 
-**Benefits:**
-- Fair comparison across different fight durations
-- Consistent visualization across reports
-- Automatic handling without configuration needed
+**Implementation Details:**
+- Previous data is normalized using its fight duration in the analysis layer
+- Current data remains unnormalized for display
+- Change calculations normalize current values temporarily for accurate comparisons
+- Both current and previous values are normalized to "per 30 minutes" for change calculations
 - Original values preserved as `{metric}_original` for reference
+- Normalization applied in `_generate_single_plot` for previous data and in plot classes for change calculations
+
+**Benefits:**
+- Normal values display actual raid performance without artificial scaling
+- Change calculations are fair across different fight durations
+- Progress plots show true progression without duration bias
+- Accurate change percentages when comparing reports with different durations
 
 ## Code Style Guidelines
 

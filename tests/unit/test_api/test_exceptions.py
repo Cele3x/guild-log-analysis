@@ -1,14 +1,9 @@
 """Tests for API exceptions."""
 
 from src.guild_log_analysis.api.exceptions import (
-    AnalysisError,
     APIError,
     AuthenticationError,
-    CacheError,
     ConfigurationError,
-    DataNotFoundError,
-    InvalidDataError,
-    PlotError,
     RateLimitError,
     WoWAnalysisError,
 )
@@ -110,53 +105,6 @@ class TestRateLimitError:
         """Test that RateLimitError inherits from APIError."""
         error = RateLimitError("rate limit error")
         assert isinstance(error, APIError)
-        assert isinstance(error, WoWAnalysisError)
-
-
-class TestCacheError:
-    """Test cases for CacheError exception."""
-
-    def test_inheritance(self):
-        """Test that CacheError inherits from WoWAnalysisError."""
-        error = CacheError("cache error")
-        assert isinstance(error, WoWAnalysisError)
-
-
-class TestAnalysisError:
-    """Test cases for AnalysisError exception."""
-
-    def test_inheritance(self):
-        """Test that AnalysisError inherits from WoWAnalysisError."""
-        error = AnalysisError("analysis error")
-        assert isinstance(error, WoWAnalysisError)
-
-
-class TestDataNotFoundError:
-    """Test cases for DataNotFoundError exception."""
-
-    def test_inheritance(self):
-        """Test that DataNotFoundError inherits from AnalysisError."""
-        error = DataNotFoundError("data not found")
-        assert isinstance(error, AnalysisError)
-        assert isinstance(error, WoWAnalysisError)
-
-
-class TestInvalidDataError:
-    """Test cases for InvalidDataError exception."""
-
-    def test_inheritance(self):
-        """Test that InvalidDataError inherits from AnalysisError."""
-        error = InvalidDataError("invalid data")
-        assert isinstance(error, AnalysisError)
-        assert isinstance(error, WoWAnalysisError)
-
-
-class TestPlotError:
-    """Test cases for PlotError exception."""
-
-    def test_inheritance(self):
-        """Test that PlotError inherits from WoWAnalysisError."""
-        error = PlotError("plot error")
         assert isinstance(error, WoWAnalysisError)
 
 

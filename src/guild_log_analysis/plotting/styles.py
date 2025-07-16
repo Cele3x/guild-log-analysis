@@ -47,16 +47,18 @@ class PlotStyleManager:
         return getattr(ClassColors, class_attr, PlotColors.TEXT_PRIMARY)
 
     @staticmethod
-    def get_change_color(change_value: float) -> str:
+    def get_change_color(change_value: float, invert_colors: bool = False) -> str:
         """
-        Get color for change value (positive/negative/neutral).
+        Get color for change value (positive/negative/zero).
 
         :param change_value: Change value
+        :param invert_colors: If True, invert positive/negative colors (useful for metrics where lower is better)
         :returns: Color hex code
         """
         if change_value > 0:
-            return PlotColors.POSITIVE_CHANGE_COLOR
+            return PlotColors.NEGATIVE_CHANGE_COLOR if invert_colors else PlotColors.POSITIVE_CHANGE_COLOR
         elif change_value < 0:
-            return PlotColors.NEGATIVE_CHANGE_COLOR
+            return PlotColors.POSITIVE_CHANGE_COLOR if invert_colors else PlotColors.NEGATIVE_CHANGE_COLOR
         else:
-            return PlotColors.NEUTRAL_CHANGE_COLOR
+            # Use yellow for zero changes
+            return PlotColors.ZERO_CHANGE_COLOR

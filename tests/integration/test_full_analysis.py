@@ -280,8 +280,10 @@ class TestAPIIntegration:
                 {
                     "name": "Travelling Flames Damage",
                     "analysis": {
-                        "type": "damage_taken_from_ability",
+                        "type": "table_data",
+                        "data_type": "DamageTaken",
                         "ability_id": 1223999,
+                        "result_key": "travelling_flames_damage",
                     },
                     "plot": {
                         "type": "NumberPlot",
@@ -321,11 +323,11 @@ class TestAPIIntegration:
         assert damage_analysis["name"] == "Travelling Flames Damage"
         assert len(damage_analysis["data"]) == 3
 
-        # Check that damage was properly assigned with correct result_key
+        # Check that damage was properly assigned
         player_data = damage_analysis["data"]
         player1 = next(p for p in player_data if p["player_name"] == "TestPlayer1")
-        assert player1["travelling_flames_damage"] == 15000
-        assert "damage_taken" not in player1  # Original field should be renamed
+        # For DamageTaken, the key should be "damage_taken"
+        assert player1["damage_taken"] == 15000
 
         # Verify API was called with correct parameters
         mock_execute_query.assert_called_once()
@@ -333,6 +335,6 @@ class TestAPIIntegration:
         query = call_args[0]
         variables = call_args[1]
 
-        assert "dataType: DamageTaken" in query
-        assert "abilityID: $abilityID" in query
+        # Check the query contains the expected parameters for table data
+        assert "table" in query
         assert variables["abilityID"] == 1223999

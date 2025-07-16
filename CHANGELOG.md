@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2025-07-16
+
+### Added
+- **Polarization Blast Hits Analysis**: New custom analysis type for counting damage events with 10-second hit grouping to avoid double-counting rapid hits
+- **Spell Data Configuration**: Added comprehensive spell data system in `spells.yaml` with defensive cooldowns, healing abilities, and raid-wide defensive abilities organized by class
+- **Test Infrastructure**: Complete test directory restructure with centralized output management, fixtures, and comprehensive documentation
+
+### Enhanced
+- **GraphQL Query Optimization**: Replaced manual death event counting with native `wipeCutoff` parameter for better performance and server-side filtering
+- **Code Reuse**: Eliminated custom player name queries in favor of base class implementation, reducing code duplication
+- **Sprocketmonger Lockenstock Analysis**: Enhanced boss configuration with Wire Transfer analysis and improved German descriptions
+
+### Fixed
+- **API Efficiency**: Removed redundant death event queries by leveraging GraphQL `wipeCutoff` parameter with default value of 4 deaths
+- **Memory Usage**: Simplified player name resolution using existing base class data instead of additional API calls
+
+### Refactoring
+- **Tests Organization**: Restructured tests folder with proper output isolation, removed duplicate nested directories, and cleaned up scattered plot files
+- **Performance**: Streamlined custom analysis methods by removing ~100 lines of manual timestamp tracking code
+- **GraphQL Queries**: Consolidated event filtering logic into server-side parameters for better performance
+
+### Documentation
+- **Test Structure**: Added comprehensive README files documenting test organization, output directories, and best practices
+- **Spell System**: Documented spell data format and usage patterns for future defensive cooldown analysis
+
+### Technical Details
+- Custom analysis methods now use `DEFAULT_WIPE_CUTOFF` (4 deaths) when no cutoff specified
+- GraphQL queries handle wipe cutoff filtering server-side instead of client-side timestamp comparison
+- Test outputs now properly isolated in `tests/output/` with automatic directory creation
+- Removed date-named plot folders and duplicate test structures
+- Enhanced pre-commit configuration with comprehensive code quality checks
+
 ## [2.4.1] - 2025-07-14
 
 ### Fixed

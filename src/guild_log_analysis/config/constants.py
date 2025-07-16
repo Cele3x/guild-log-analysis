@@ -5,7 +5,10 @@ This module contains only essential constants that are used repeatedly
 across the codebase to avoid magic strings and improve maintainability.
 """
 
-from typing import Final
+from pathlib import Path
+from typing import Any, Final, Optional
+
+import yaml
 
 # API Configuration
 API_BASE_URL = "https://www.warcraftlogs.com/api/v2/client"
@@ -105,3 +108,22 @@ class PlotColors:
     POSITIVE_CHANGE_COLOR: Final[str] = "#00FF00"
     NEGATIVE_CHANGE_COLOR: Final[str] = "#FF0000"
     NEUTRAL_CHANGE_COLOR: Final[str] = "#CCCCCC"
+    ZERO_CHANGE_COLOR: Final[str] = "#FFFF00"  # Yellow for zero changes
+
+
+# Spell Data
+def load_spells_data() -> Optional[dict[str, Any]]:
+    """
+    Load spell data from spells.yaml file.
+
+    :returns: Dictionary containing spell data by class, or None if file not found
+    """
+    try:
+        spells_file = Path(__file__).parent / "spells.yaml"
+        if not spells_file.exists():
+            return None
+
+        with open(spells_file, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    except Exception:
+        return None

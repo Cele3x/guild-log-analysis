@@ -71,36 +71,6 @@ def safe_json_save(data: Any, file_path: Path, indent: int = 2) -> bool:
         return False
 
 
-def clean_old_files(directory: Path, pattern: str, max_files: int) -> None:
-    """
-    Clean old files matching pattern, keeping only the most recent ones.
-
-    :param directory: Directory to clean
-    :param pattern: File pattern to match
-    :param max_files: Maximum number of files to keep
-    """
-    try:
-        if not directory.exists():
-            return
-
-        # Find all matching files
-        files = list(directory.glob(pattern))
-
-        # Sort by modification time (newest first)
-        files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-
-        # Remove excess files
-        for file_to_remove in files[max_files:]:
-            try:
-                file_to_remove.unlink()
-                logger.debug(f"Removed old file: {file_to_remove}")
-            except OSError as e:
-                logger.warning(f"Failed to remove file {file_to_remove}: {e}")
-
-    except Exception as e:
-        logger.error(f"Error cleaning old files: {e}")
-
-
 def ensure_directory(path: Path) -> bool:
     """
     Ensure directory exists, creating it if necessary.
