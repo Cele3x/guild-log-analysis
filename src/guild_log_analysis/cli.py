@@ -24,7 +24,7 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   %(prog)s --reports kPJma1QVhABKz4Hr yC1KYmQpv9MbNw4T --boss one_armed_bandit
-  %(prog)s --reports report1 report2 --boss one_armed_bandit --progress-plots
+  %(prog)s --reports "report1 report2" --boss one_armed_bandit --progress-plots
   %(prog)s --reports report1 --boss one_armed_bandit --verbose
   %(prog)s --list-bosses
         """,
@@ -53,6 +53,15 @@ Examples:
         "-p",
         action="store_true",
         help="Generate progress plots showing trends over time",
+        default=False,
+    )
+
+    # Death timeline plots flag (disabled by default)
+    parser.add_argument(
+        "--death-timelines",
+        "-t",
+        action="store_true",
+        help="Generate death timeline plots for each fight",
         default=False,
     )
 
@@ -125,6 +134,36 @@ def setup_logging_level(verbose: bool, debug: bool) -> None:
         logging.getLogger().setLevel(logging.WARNING)
 
 
+def normalize_report_ids(report_args: list[str]) -> list[str]:
+    """
+    Normalize report IDs by splitting space-separated strings.
+
+    Supports both:
+    - Standard CLI: ['rep1', 'rep2', 'rep3']
+    - Single string: ['rep1 rep2 rep3'] (for VSCode/IDEs)
+
+    :param report_args: Raw report arguments from argparse
+    :returns: List of individual report IDs
+    """
+    import re
+
+    result = []
+    for arg in report_args:
+        # Split by whitespace
+        split_ids = arg.split()
+
+        # Validate and add each report ID
+        for rid in split_ids:
+            rid = rid.strip()
+            if rid:
+                if not re.match(r"^[a-zA-Z0-9]+$", rid):
+                    print(f"Warning: Invalid report ID format '{rid}' (should be alphanumeric)", file=sys.stderr)
+                else:
+                    result.append(rid)
+
+    return result
+
+
 def validate_args(args: argparse.Namespace) -> bool:
     """
     Validate command-line arguments.
@@ -143,6 +182,14 @@ def validate_args(args: argparse.Namespace) -> bool:
 
     if not args.boss:
         print("Error: --boss is required unless using --list-bosses", file=sys.stderr)
+        return False
+
+    # Normalize report IDs (splits space-separated strings)
+    args.reports = normalize_report_ids(args.reports)
+
+    # Validate that we have at least one valid report
+    if not args.reports:
+        print("Error: No valid report IDs provided", file=sys.stderr)
         return False
 
     # Validate boss name
@@ -183,10 +230,16 @@ def run_analysis(args: argparse.Namespace) -> None:
     if hasattr(analyzer, plot_method_name):
         plot_method = getattr(analyzer, plot_method_name)
         logger.info("Generating plots...")
-        plot_method(include_progress_plots=args.progress_plots)
+        plot_method(include_progress_plots=args.progress_plots, include_death_timelines=args.death_timelines)
 
+        plot_types = []
         if args.progress_plots:
-            logger.info("Plot generation (including progress plots) completed successfully")
+            plot_types.append("progress plots")
+        if args.death_timelines:
+            plot_types.append("death timelines")
+
+        if plot_types:
+            logger.info(f"Plot generation (including {', '.join(plot_types)}) completed successfully")
         else:
             logger.info("Plot generation completed successfully")
     else:

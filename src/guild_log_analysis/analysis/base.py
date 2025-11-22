@@ -16,6 +16,7 @@ import pandas as pd
 from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF
 from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot, SurvivabilityPlot
+from ..plotting.death_timeline import DeathTimelinePlot
 from ..plotting.multi_line import MultiLinePlot
 from ..utils.helpers import filter_players_by_roles
 
@@ -192,6 +193,20 @@ class BossAnalysisBase(ABC):
                     player_data[config["result_key"]] = player_data.pop("damage")
         elif analysis_type == "table_data":
             data = self.analyze_table_data(
+                report_code=report_code,
+                config=config,
+                fight_ids=fight_ids,
+                report_players=filtered_players,
+            )
+        elif analysis_type == "death_timeline":
+            data = self.analyze_death_timeline(
+                report_code=report_code,
+                config=config,
+                fight_ids=fight_ids,
+                report_players=filtered_players,
+            )
+        elif analysis_type == "events":
+            data = self.analyze_events(
                 report_code=report_code,
                 config=config,
                 fight_ids=fight_ids,
@@ -779,6 +794,15 @@ class BossAnalysisBase(ABC):
         :param report_players: List of players who participated in the fights
         :return: List of player data processed from table response
         """
+        # For Deaths data type, use events query instead of table query
+        if config.get("data_type") == "Deaths":
+            return self.analyze_deaths_events(
+                report_code=report_code,
+                config=config,
+                fight_ids=fight_ids,
+                report_players=report_players,
+            )
+
         # Get table data using the new method
         table_data = self.get_table_data(
             report_code=report_code,
@@ -819,8 +843,6 @@ class BossAnalysisBase(ABC):
                     entries = parsed_data["data"]["auras"]
                 elif config.get("data_type") == "DamageTaken" and "entries" in parsed_data["data"]:
                     entries = parsed_data["data"]["entries"]
-                elif config.get("data_type") == "Deaths" and "entries" in parsed_data["data"]:
-                    entries = parsed_data["data"]["entries"]
                 elif config.get("data_type") == "Survivability" and "players" in parsed_data["data"]:
                     entries = parsed_data["data"]["players"]
                 else:
@@ -853,18 +875,6 @@ class BossAnalysisBase(ABC):
                                     ),
                                 ),
                             }
-                        elif config.get("data_type") == "Deaths":
-                            # Deaths data type returns death events, not simple counts
-                            # Each entry represents a death event, so count = 1 per entry
-                            # If we've seen this player before, increment; otherwise start at 1
-                            if player_name in table_metrics:
-                                table_metrics[player_name]["deaths"] += 1
-                                table_metrics[player_name]["hit_count"] += 1
-                            else:
-                                table_metrics[player_name] = {
-                                    "deaths": 1,
-                                    "hit_count": 1,
-                                }
                         elif config.get("data_type") == "Survivability":
                             # Survivability data returns fight-by-fight survivability percentages
                             # API returns decimal values (0.0-1.0), convert to percentages (0-100)
@@ -875,7 +885,8 @@ class BossAnalysisBase(ABC):
                                 if survivability_values:
                                     # Convert from decimal to percentage with 2 decimal places
                                     average_survivability = round(
-                                        (sum(survivability_values) / len(survivability_values)) * 100, 2
+                                        (sum(survivability_values) / len(survivability_values)) * 100,
+                                        2,
                                     )
                                 else:
                                     average_survivability = 0.0
@@ -928,8 +939,6 @@ class BossAnalysisBase(ABC):
                                     "hit_count": 0,
                                 }
                             )
-                        elif config.get("data_type") == "Deaths":
-                            player_entry.update({"deaths": 0, "hit_count": 0})
                         elif config.get("data_type") == "Survivability":
                             player_entry.update({"survivability_percentage": 0.0, "hit_count": 0})
 
@@ -956,14 +965,843 @@ class BossAnalysisBase(ABC):
             logger.error(f"Error parsing table data for report {report_code}: {e}")
             return []
 
-    def generate_plots(self, include_progress_plots: bool = True) -> None:
+    def analyze_deaths_events(
+        self,
+        report_code: str,
+        config: dict[str, Any],
+        fight_ids: Optional[set[int]] = None,
+        report_players: Optional[list[dict[str, Any]]] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Analyze player deaths using the Death events query with ability information.
+
+        :param report_code: The WarcraftLogs report code
+        :param config: Configuration dictionary containing death analysis parameters
+        :param fight_ids: Optional set of fight IDs to filter
+        :param report_players: List of players who participated in the fights
+        :return: List of player data with death counts and ability information
+        """
+        if not fight_ids:
+            logger.warning("No fight IDs provided for deaths analysis")
+            return []
+
+        if not report_players:
+            logger.warning("No report players provided for deaths analysis")
+            return []
+
+        wipe_cutoff = config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF)
+        ability_id = config.get("ability_id")
+
+        # Create player lookup by ID
+        player_lookup = {player["id"]: player for player in report_players}
+
+        try:
+            # Query for death events with ability information
+            death_query = """
+            query GetDeathEvents(
+                $reportCode: String!, $fightIDs: [Int]!, $wipeCutoff: Int!, $abilityID: Float
+            ) {
+              reportData {
+                report(code: $reportCode) {
+                  events(
+                    fightIDs: $fightIDs,
+                    dataType: Deaths,
+                    hostilityType: Friendlies,
+                    wipeCutoff: $wipeCutoff,
+                    abilityID: $abilityID,
+                    limit: 1000,
+                    useAbilityIDs: true
+                  ) {
+                    data
+                  }
+                  masterData {
+                    abilities {
+                      gameID
+                      name
+                      icon
+                      type
+                    }
+                  }
+                }
+              }
+            }
+            """
+
+            death_variables = {
+                "reportCode": report_code,
+                "fightIDs": list(fight_ids),
+                "wipeCutoff": wipe_cutoff,
+            }
+
+            # Add ability filter if specified
+            if ability_id:
+                death_variables["abilityID"] = float(ability_id)
+
+            death_result = self.api_client.make_request(death_query, death_variables)
+
+            if not death_result or "data" not in death_result:
+                logger.warning(f"No death events returned for report {report_code}")
+                return []
+
+            death_events = death_result["data"]["reportData"]["report"]["events"]["data"]
+            abilities = death_result["data"]["reportData"]["report"]["masterData"]["abilities"]
+
+            # Create ability lookup
+            ability_lookup = {ability["gameID"]: ability for ability in abilities}
+
+            # Initialize death tracking for each player
+            death_counts = defaultdict(int)
+            death_details = defaultdict(lambda: {"abilities": defaultdict(int), "total_deaths": 0})
+
+            # Process death events
+            for event in death_events:
+                if event.get("type") == "death":
+                    target_id = event.get("targetID")
+                    killing_ability_id = event.get("killingAbilityGameID", 0)
+
+                    # Find the player this death belongs to
+                    if target_id in player_lookup:
+                        player = player_lookup[target_id]
+                        player_name = player["name"]
+
+                        # Count the death
+                        death_counts[player_name] += 1
+                        death_details[player_name]["total_deaths"] += 1
+
+                        # Track killing ability
+                        if killing_ability_id in ability_lookup:
+                            ability_name = ability_lookup[killing_ability_id]["name"]
+                            death_details[player_name]["abilities"][ability_name] += 1
+                        else:
+                            death_details[player_name]["abilities"]["Unknown Ability"] += 1
+
+            # Create result data
+            unique_players = {}
+            for player in report_players:
+                player_name = player["name"]
+                if player_name not in unique_players:
+                    # Start with participant data
+                    player_entry = {
+                        "player_name": player_name,
+                        "class": player["type"],
+                        "role": player["role"],
+                        "deaths": death_counts[player_name],
+                        "hit_count": death_counts[player_name],  # For consistency with other analyses
+                    }
+
+                    # Add ability details if available
+                    if player_name in death_details:
+                        player_entry["death_abilities"] = dict(death_details[player_name]["abilities"])
+
+                    unique_players[player_name] = player_entry
+
+            # Convert to list and log results
+            player_data = list(unique_players.values())
+            total_deaths = sum(death_counts.values())
+            logger.info(f"Processed {total_deaths} deaths for {len(player_data)} players in report {report_code}")
+
+            return player_data
+
+        except Exception as e:
+            logger.error(f"Error analyzing death events for report {report_code}: {e}")
+            return []
+
+    def analyze_events(
+        self,
+        report_code: str,
+        config: dict[str, Any],
+        fight_ids: Optional[set[int]] = None,
+        report_players: Optional[list[dict[str, Any]]] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Analyze generic events with simple filtering.
+
+        This method fetches events of a specific type and counts occurrences
+        per player. It applies minimal filtering:
+        1. Server-side: ability ID, data type, wipe cutoff
+        2. Client-side: event types, pull ignore time
+
+        :param report_code: The WarcraftLogs report code
+        :param config: Configuration dictionary containing:
+            - data_type: Required. Event data type (e.g., "Debuffs", "Casts")
+            - ability_id: Required. The ability ID to track
+            - event_types: Optional. List of event types to count
+            - pull_ignore_time_ms: Optional. Time in ms to ignore after pull
+            - wipe_cutoff: Optional. Wipe cutoff (default: DEFAULT_WIPE_CUTOFF)
+        :param fight_ids: Optional set of fight IDs to filter
+        :param report_players: List of players who participated in the fights
+        :return: List of player data with event counts
+        """
+        if not fight_ids:
+            logger.warning("No fight IDs provided for event analysis")
+            return []
+
+        if not report_players:
+            logger.warning("No report players provided for event analysis")
+            return []
+
+        # Extract required parameters
+        data_type = config.get("data_type")
+        ability_id = config.get("ability_id")
+
+        if not data_type:
+            logger.error("data_type is required for event analysis")
+            return []
+
+        if not ability_id:
+            logger.error("ability_id is required for event analysis")
+            return []
+
+        # Optional parameters
+        event_types = config.get("event_types", [])
+        pull_ignore_time_ms = config.get("pull_ignore_time_ms", 0)
+        wipe_cutoff = config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF)
+
+        # Create player lookup by ID
+        player_lookup = {player["id"]: player for player in report_players}
+
+        try:
+            # Query for events
+            events_query = """
+            query GetEvents(
+                $reportCode: String!, $fightIDs: [Int]!, $wipeCutoff: Int!,
+                $abilityID: Float, $dataType: EventDataType!
+            ) {
+              reportData {
+                report(code: $reportCode) {
+                  events(
+                    fightIDs: $fightIDs,
+                    dataType: $dataType,
+                    hostilityType: Friendlies,
+                    wipeCutoff: $wipeCutoff,
+                    abilityID: $abilityID,
+                    limit: 10000,
+                    useAbilityIDs: true
+                  ) {
+                    data
+                  }
+                  fights(fightIDs: $fightIDs) {
+                    id
+                    startTime
+                    endTime
+                  }
+                }
+              }
+            }
+            """
+
+            events_variables = {
+                "reportCode": report_code,
+                "fightIDs": list(fight_ids),
+                "wipeCutoff": wipe_cutoff,
+                "abilityID": float(ability_id),
+                "dataType": data_type,
+            }
+
+            events_result = self.api_client.make_request(events_query, events_variables)
+
+            if not events_result or "data" not in events_result:
+                logger.warning(f"No {data_type} events returned for report {report_code}")
+                return []
+
+            events = events_result["data"]["reportData"]["report"]["events"]["data"]
+            fights = events_result["data"]["reportData"]["report"]["fights"]
+
+            # Create fight start time lookup
+            fight_start_times = {fight["id"]: fight["startTime"] for fight in fights}
+
+            # Initialize tracking
+            event_counts: dict[str, int] = defaultdict(int)
+
+            # Process events with simple filtering
+            for event in events:
+                # Filter by event type if specified
+                if event_types:
+                    event_type = event.get("type", "")
+                    if event_type not in event_types:
+                        continue
+
+                # Filter by pull ignore time if specified
+                if pull_ignore_time_ms > 0:
+                    fight_id = event.get("fight")
+                    event_timestamp = event.get("timestamp", 0)
+                    if fight_id in fight_start_times:
+                        fight_start = fight_start_times[fight_id]
+                        if (event_timestamp - fight_start) < pull_ignore_time_ms:
+                            continue
+
+                # Count the event for the target player
+                target_id = event.get("targetID")
+                if target_id in player_lookup:
+                    player = player_lookup[target_id]
+                    player_name = player["name"]
+                    event_counts[player_name] += 1
+
+            # Create result data
+            unique_players = {}
+            for player in report_players:
+                player_name = player["name"]
+                if player_name not in unique_players:
+                    player_entry = {
+                        "player_name": player_name,
+                        "class": player["type"],
+                        "role": player["role"],
+                        "hit_count": event_counts[player_name],
+                    }
+                    unique_players[player_name] = player_entry
+
+            # Convert to list and log results
+            player_data = list(unique_players.values())
+            total_events = sum(event_counts.values())
+            logger.info(
+                f"Processed {total_events} {data_type} events for {len(player_data)} players in report {report_code}"
+            )
+
+            return player_data
+
+        except Exception as e:
+            logger.error(f"Error analyzing events for report {report_code}: {e}")
+            return []
+
+    def analyze_death_timeline(
+        self,
+        report_code: str,
+        config: dict[str, Any],
+        fight_ids: Optional[set[int]] = None,
+        report_players: Optional[list[dict[str, Any]]] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Analyze player deaths with proper death events API.
+
+        This method analyzes player deaths by:
+        1. Using the Deaths dataType to get actual death events
+        2. Filtering deaths based on health threshold and instant death detection
+        3. Tracking damage spells leading to death
+        4. Grouping deaths intelligently (4 deaths + 10-second window logic)
+        5. Generating death list data for visualization
+
+        :param report_code: The WarcraftLogs report code
+        :param config: Analysis configuration dictionary
+        :param fight_ids: Set of fight IDs to analyze
+        :param report_players: List of players who participated in the fights
+        :return: List of death timeline data per fight
+        """
+        if not fight_ids:
+            fight_ids = self.get_fight_ids(report_code)
+        if not report_players:
+            report_players = self.get_participants(report_code, fight_ids)
+
+        wipe_cutoff = config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF)
+        health_threshold = config.get("health_threshold", 50)  # 50% health threshold
+        damage_window_ms = config.get("damage_window_ms", 10000)  # 10 seconds before death
+        death_grouping_window_ms = config.get("death_grouping_window_ms", 10000)  # 10 seconds
+
+        # Create player name mapping
+        player_names = {player.get("id"): player.get("name") for player in report_players}
+
+        try:
+            # First get fight details to get start times
+            fight_details_query = """
+            query GetFightDetails(
+                $reportCode: String!, $fightIDs: [Int]!
+            ) {
+              reportData {
+                report(code: $reportCode) {
+                  fights(fightIDs: $fightIDs) {
+                    id
+                    startTime
+                    endTime
+                  }
+                }
+              }
+            }
+            """
+
+            # Query for death events using proper Deaths API with resources
+            death_query = """
+            query GetDeathEvents(
+                $reportCode: String!, $fightIDs: [Int]!, $wipeCutoff: Int!
+            ) {
+              reportData {
+                report(code: $reportCode) {
+                  events(
+                    fightIDs: $fightIDs,
+                    dataType: Deaths,
+                    hostilityType: Friendlies,
+                    wipeCutoff: $wipeCutoff,
+                    limit: 1000,
+                    includeResources: true
+                  ) {
+                    data
+                  }
+                }
+              }
+            }
+            """
+
+            # Query for damage events to track spells before death (per fight to avoid limits)
+            damage_query = """
+            query GetDamageEvents(
+                $reportCode: String!, $fightID: Int!, $wipeCutoff: Int!
+            ) {
+              reportData {
+                report(code: $reportCode) {
+                  events(
+                    fightIDs: [$fightID],
+                    dataType: DamageTaken,
+                    hostilityType: Friendlies,
+                    wipeCutoff: $wipeCutoff,
+                    limit: 10000,
+                    includeResources: true
+                  ) {
+                    data
+                  }
+                  masterData {
+                    abilities {
+                      gameID
+                      name
+                      icon
+                      type
+                    }
+                  }
+                }
+              }
+            }
+            """
+
+            # Execute queries
+            base_variables = {
+                "reportCode": report_code,
+                "fightIDs": list(fight_ids),
+            }
+
+            death_variables = {
+                **base_variables,
+                "wipeCutoff": wipe_cutoff,
+            }
+
+            # Get fight details first
+            fight_details_result = self.api_client.make_request(fight_details_query, base_variables)
+            death_result = self.api_client.make_request(death_query, death_variables)
+
+            if not death_result or "data" not in death_result:
+                logger.warning(f"No death events returned for report {report_code}")
+                return []
+
+            # Query damage events per fight to avoid API limits
+            all_damage_events = []
+            abilities_data = None
+
+            for fight_id in fight_ids:
+                damage_variables = {
+                    "reportCode": report_code,
+                    "fightID": fight_id,
+                    "wipeCutoff": wipe_cutoff,
+                }
+
+                damage_result = self.api_client.make_request(damage_query, damage_variables)
+
+                if damage_result and "data" in damage_result:
+                    fight_damage_events = damage_result["data"]["reportData"]["report"]["events"]["data"]
+                    all_damage_events.extend(fight_damage_events)
+
+                    # Get abilities data from the first successful query
+                    if abilities_data is None:
+                        abilities_data = damage_result["data"]["reportData"]["report"]["masterData"]["abilities"]
+
+                    logger.debug(f"Retrieved {len(fight_damage_events)} damage events for fight {fight_id}")
+                else:
+                    logger.warning(f"No damage events returned for fight {fight_id}")
+
+            logger.info(f"Retrieved total {len(all_damage_events)} damage events across all fights")
+
+            if not all_damage_events:
+                logger.warning(f"No damage events returned for any fight in report {report_code}")
+                return []
+
+            # Extract fight start times
+            fight_start_times = {}
+            if fight_details_result and "data" in fight_details_result:
+                fights = fight_details_result["data"]["reportData"]["report"]["fights"]
+                for fight in fights:
+                    fight_start_times[fight["id"]] = fight["startTime"]
+
+            death_events = death_result["data"]["reportData"]["report"]["events"]["data"]
+            damage_events = all_damage_events
+
+            # Extract ability lookup from abilities data
+            abilities = abilities_data or []
+            ability_lookup = {ability["gameID"]: ability["name"] for ability in abilities}
+
+            # Extract maxHitPoints from death events and damage events
+            player_max_hp = self._extract_max_hp_from_events(death_events, damage_events, player_names)
+
+            # Process death timeline data
+            timeline_data = self._process_death_events(
+                death_events,
+                damage_events,
+                player_names,
+                fight_start_times,
+                health_threshold,
+                damage_window_ms,
+                death_grouping_window_ms,
+                ability_lookup,
+                player_max_hp,
+            )
+
+            logger.info(f"Analyzed death events for report {report_code}: {len(timeline_data)} fights processed")
+            return timeline_data
+
+        except Exception as e:
+            logger.error(f"Error analyzing death timeline for report {report_code}: {e}")
+            return []
+
+    def _extract_max_hp_from_events(
+        self,
+        death_events: list[dict[str, Any]],
+        damage_events: list[dict[str, Any]],
+        player_names: dict[int, str],
+    ) -> dict[int, int]:
+        """
+        Extract maxHitPoints for each player from death events and damage events.
+
+        Both death events and damage events with includeResources=true include maxHitPoints.
+
+        :param death_events: List of death events (includes damage events with resources)
+        :param damage_events: List of damage events (includes resources)
+        :param player_names: Dictionary mapping player IDs to names
+        :return: Dictionary mapping player IDs to their maxHitPoints
+        """
+        player_max_hp = {}
+
+        # Extract from death events (includes damage events with resources)
+        for event in death_events:
+            # Look for damage events that have maxHitPoints
+            if event.get("type") == "damage" and "maxHitPoints" in event:
+                target_id = event.get("targetID")
+                max_hit_points = event.get("maxHitPoints")
+
+                if target_id in player_names and max_hit_points and max_hit_points > 0:
+                    # Use the highest maxHitPoints found for this player
+                    if target_id not in player_max_hp or max_hit_points > player_max_hp[target_id]:
+                        player_max_hp[target_id] = max_hit_points
+                        player_name = player_names[target_id]
+                        logger.debug(
+                            f"Found maxHitPoints {max_hit_points:,} for player " f"{player_name} from death events"
+                        )
+
+        # Extract from damage events (now includes resources)
+        for event in damage_events:
+            # Look for damage events that have maxHitPoints
+            if event.get("type") == "damage" and "maxHitPoints" in event:
+                target_id = event.get("targetID")
+                max_hit_points = event.get("maxHitPoints")
+
+                if target_id in player_names and max_hit_points and max_hit_points > 0:
+                    # Use the highest maxHitPoints found for this player
+                    if target_id not in player_max_hp or max_hit_points > player_max_hp[target_id]:
+                        player_max_hp[target_id] = max_hit_points
+                        player_name = player_names[target_id]
+                        logger.debug(
+                            f"Found maxHitPoints {max_hit_points:,} for player " f"{player_name} from damage events"
+                        )
+
+        return player_max_hp
+
+    def _process_death_events(
+        self,
+        death_events: list[dict[str, Any]],
+        damage_events: list[dict[str, Any]],
+        player_names: dict[int, str],
+        fight_start_times: dict[int, int],
+        health_threshold: int,
+        damage_window_ms: int,
+        death_grouping_window_ms: int,
+        ability_lookup: dict[int, str],
+        player_max_hp: dict[int, int],
+    ) -> list[dict[str, Any]]:
+        """
+        Process death events into timeline data with intelligent grouping.
+
+        :param death_events: List of death events from API
+        :param damage_events: List of damage events from API
+        :param player_names: Dictionary mapping player IDs to names
+        :param fight_start_times: Dictionary mapping fight IDs to start times
+        :param health_threshold: Health percentage threshold for non-instant deaths
+        :param damage_window_ms: Time window to look back for damage events
+        :param death_grouping_window_ms: Time window for death grouping logic
+        :param ability_lookup: Dictionary mapping ability IDs to names
+        :param player_max_hp: Dictionary mapping player IDs to their maxHitPoints
+        :return: List of timeline data per fight
+        """
+        # Group events by fight
+        deaths_by_fight = defaultdict(list)
+        damage_by_fight = defaultdict(list)
+
+        for event in death_events:
+            if event.get("type") == "death":
+                deaths_by_fight[event["fight"]].append(event)
+
+        for event in damage_events:
+            if event.get("type") == "damage":
+                damage_by_fight[event["fight"]].append(event)
+
+        timeline_results = []
+
+        for fight_id, fight_deaths in deaths_by_fight.items():
+            # Sort deaths by timestamp
+            fight_deaths.sort(key=lambda x: x["timestamp"])
+            fight_damage = damage_by_fight.get(fight_id, [])
+
+            # Filter deaths based on health threshold and instant death logic
+            valid_deaths = self._filter_valid_deaths(fight_deaths, health_threshold)
+
+            # Apply death grouping logic (4 deaths + 10-second window)
+            analyzed_deaths = self._apply_death_grouping_logic(valid_deaths, death_grouping_window_ms)
+
+            if not analyzed_deaths:
+                continue
+
+            # Build timeline data for this fight
+            fight_timeline = {
+                "fight_id": fight_id,
+                "deaths": [],
+                "death_count": len(analyzed_deaths),
+                "timeline_duration_ms": analyzed_deaths[-1]["timestamp"] - analyzed_deaths[0]["timestamp"],
+            }
+
+            for death in analyzed_deaths:
+                player_id = death["targetID"]
+                player_name = player_names.get(player_id, f"Player {player_id}")
+                death_timestamp = death["timestamp"]
+
+                # Calculate health percentage before death (not after, since after death = 0%)
+                hit_points_before_death = death.get("hitPoints", 0)
+                # Use maxHitPoints from damage events for reliable health percentage calculation
+                max_hit_points = player_max_hp.get(player_id, 0)
+                overkill = death.get("overkill", 0)
+
+                # Debug logging for health percentage calculation
+                logger.debug(
+                    f"Player {player_name} max HP from damage events: "
+                    f"{max_hit_points}, hit points: {hit_points_before_death}, "
+                    f"overkill: {overkill}"
+                )
+
+                # If maxHitPoints is 0 or missing, we can't calculate meaningful percentages
+                if max_hit_points <= 0:
+                    logger.warning(
+                        f"No maxHitPoints found for player {player_name} in damage "
+                        f"events, skipping health percentage calculation"
+                    )
+                    max_hit_points = None
+
+                # Find damage events leading to this death
+                damage_spells = self._get_damage_before_death(
+                    fight_damage,
+                    player_id,
+                    death_timestamp,
+                    damage_window_ms,
+                    ability_lookup,
+                    max_hit_points,
+                )
+
+                # Health percentage before taking the killing blow
+                health_before_death = (
+                    (hit_points_before_death + overkill) / max_hit_points * 100
+                    if max_hit_points and max_hit_points > 0
+                    else 0
+                )
+
+                # Convert timestamp to fight time (relative to fight start)
+                fight_start_time = fight_start_times.get(fight_id, 0)
+                fight_time_seconds = (death_timestamp - fight_start_time) / 1000.0
+
+                death_data = {
+                    "player_id": player_id,
+                    "player_name": player_name,
+                    "timestamp": death_timestamp,
+                    "fight_time_seconds": fight_time_seconds,
+                    "health_percentage": health_before_death,
+                    "is_instant_death": self._is_instant_death(death),
+                    "damage_spells": damage_spells,
+                    "total_damage_taken": sum(spell["damage"] for spell in damage_spells),
+                    "overkill": overkill,
+                }
+
+                fight_timeline["deaths"].append(death_data)
+
+            timeline_results.append(fight_timeline)
+
+        return timeline_results
+
+    def _filter_valid_deaths(self, deaths: list[dict[str, Any]], health_threshold: int) -> list[dict[str, Any]]:
+        """
+        Filter deaths based on health threshold and instant death criteria.
+
+        :param deaths: List of death events
+        :param health_threshold: Health percentage threshold
+        :return: List of valid death events
+        """
+        valid_deaths = []
+
+        for death in deaths:
+            max_hit_points = death.get("maxHitPoints", 0)
+            hit_points = death.get("hitPoints", 0)
+
+            # Calculate health percentage safely
+            if max_hit_points > 0:
+                health_percentage = hit_points / max_hit_points * 100
+            else:
+                health_percentage = 0
+
+            # Include deaths where health was below threshold OR instant deaths
+            if health_percentage < health_threshold or self._is_instant_death(death):
+                valid_deaths.append(death)
+
+        return valid_deaths
+
+    def _is_instant_death(self, death: dict[str, Any]) -> bool:
+        """
+        Determine if a death was instant (100% -> 0% health).
+
+        :param death: Death event
+        :return: True if instant death, False otherwise
+        """
+        # Check if death was from full health (assuming overkill indicates instant death)
+        overkill = death.get("overkill", 0)
+        hit_points = death.get("hitPoints", 0)
+        max_hit_points = death.get("maxHitPoints", 0)
+
+        # If we don't have valid max hit points data, we can't determine instant death
+        if max_hit_points <= 0:
+            return False
+
+        # If overkill is significant compared to max health, it's likely instant
+        return overkill > (max_hit_points * 0.5) or hit_points == max_hit_points
+
+    def _apply_death_grouping_logic(
+        self, deaths: list[dict[str, Any]], grouping_window_ms: int
+    ) -> list[dict[str, Any]]:
+        """
+        Apply death grouping logic: 4 deaths + 10-second window rule.
+
+        :param deaths: List of death events
+        :param grouping_window_ms: Time window for grouping logic
+        :return: List of deaths to analyze
+        """
+        if len(deaths) <= 4:
+            return deaths
+
+        # Take first 4 deaths
+        first_four = deaths[:4]
+        fourth_death_time = first_four[3]["timestamp"]
+
+        # Check deaths in next 10 seconds
+        next_deaths = []
+        for death in deaths[4:]:
+            if death["timestamp"] <= fourth_death_time + grouping_window_ms:
+                next_deaths.append(death)
+            else:
+                break
+
+        # Apply rule: if more than 2 deaths in next 10 seconds, exclude 4th death
+        if len(next_deaths) > 2:
+            return first_four[:3]  # Return only first 3 deaths
+        else:
+            return first_four + next_deaths[:2]  # Return first 4 + up to 2 more
+
+    def _get_damage_before_death(
+        self,
+        damage_events: list[dict[str, Any]],
+        player_id: int,
+        death_timestamp: int,
+        damage_window_ms: int,
+        ability_lookup: dict[int, str],
+        max_hit_points: Optional[int],
+    ) -> list[dict[str, Any]]:
+        """
+        Get damage spells that hit a player before their death.
+
+        :param damage_events: List of damage events
+        :param player_id: Player ID
+        :param death_timestamp: Timestamp of death
+        :param damage_window_ms: Time window to look back
+        :param ability_lookup: Dictionary mapping ability IDs to names
+        :param max_hit_points: Player's maximum hit points for health percentage calculation (None if unavailable)
+        :return: List of damage spells with details including health percentage
+        """
+        damage_spells = []
+        start_time = death_timestamp - damage_window_ms
+
+        for event in damage_events:
+            if event.get("targetID") == player_id and start_time <= event["timestamp"] <= death_timestamp:
+                ability_id = event.get("abilityGameID", 0)
+                ability_name = ability_lookup.get(ability_id, "Unknown Ability")
+                damage_amount = event.get("amount", 0)
+
+                # Calculate health percentage for this damage
+                health_percentage = (
+                    (damage_amount / max_hit_points * 100) if max_hit_points and max_hit_points > 0 else 0
+                )
+
+                damage_spells.append(
+                    {
+                        "ability_id": ability_id,
+                        "ability_name": ability_name,
+                        "damage": damage_amount,
+                        "health_percentage": health_percentage,
+                        "timestamp": event["timestamp"],
+                        "source_id": event.get("sourceID"),
+                        "time_before_death_ms": death_timestamp - event["timestamp"],
+                    }
+                )
+
+        # Sort by timestamp (most recent first)
+        damage_spells.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        # Group by ability and sum damage
+        ability_damage = defaultdict(lambda: {"damage": 0, "count": 0, "last_hit": 0})
+        for spell in damage_spells:
+            ability_id = spell["ability_id"]
+            ability_damage[ability_id]["damage"] += spell["damage"]
+            ability_damage[ability_id]["count"] += 1
+            ability_damage[ability_id]["ability_name"] = spell["ability_name"]
+            ability_damage[ability_id]["last_hit"] = max(ability_damage[ability_id]["last_hit"], spell["timestamp"])
+
+        # Convert to list and sort by damage
+        result = []
+        for ability_id, data in ability_damage.items():
+            # Calculate health percentage for the total damage from this ability
+            total_damage = data["damage"]
+            health_percentage = (total_damage / max_hit_points * 100) if max_hit_points and max_hit_points > 0 else 0
+
+            result.append(
+                {
+                    "ability_id": ability_id,
+                    "ability_name": data["ability_name"],
+                    "damage": total_damage,
+                    "health_percentage": health_percentage,
+                    "hit_count": data["count"],
+                    "last_hit_timestamp": data["last_hit"],
+                    "time_before_death_ms": death_timestamp - data["last_hit"],
+                }
+            )
+
+        # Sort by damage (highest first)
+        result.sort(key=lambda x: x["damage"], reverse=True)
+
+        return result[:10]  # Return top 10 damage sources
+
+    def generate_plots(self, include_progress_plots: bool = True, include_death_timelines: bool = False) -> None:
         """
         Generate plots using configuration.
 
         :param include_progress_plots: Whether to generate progress plots (default: True)
+        :param include_death_timelines: Whether to generate death timeline plots (default: False)
         """
         if self.CONFIG:
-            self._generate_plots_generic()
+            self._generate_plots_generic(include_death_timelines=include_death_timelines)
             if include_progress_plots:
                 self._generate_progress_plots()
         else:
@@ -977,8 +1815,11 @@ class BossAnalysisBase(ABC):
         """
         raise NotImplementedError("Either implement CONFIG or override _generate_plots_legacy")
 
-    def _generate_plots_generic(self) -> None:
-        """Generate plots using configuration."""
+    def _generate_plots_generic(self, include_death_timelines: bool = False) -> None:
+        """Generate plots using configuration.
+
+        :param include_death_timelines: Whether to generate death timeline plots (default: False)
+        """
         logger.info(f"Generating plots for {self.boss_name} analysis")
 
         if not self.results:
@@ -1015,6 +1856,7 @@ class BossAnalysisBase(ABC):
                     report_date,
                     current_fight_duration,
                     previous_fight_duration,
+                    include_death_timelines=include_death_timelines,
                 )
             except Exception as e:
                 title = config.get("title") or config.get("name", "Unknown")
@@ -1027,9 +1869,12 @@ class BossAnalysisBase(ABC):
         report_date: str,
         current_fight_duration: Optional[int],
         previous_fight_duration: Optional[int],
+        include_death_timelines: bool = False,
     ) -> None:
         """
         Generate a single plot based on configuration.
+
+        :param include_death_timelines: Whether to generate death timeline plots (default: False)
 
         :param plot_config: Plot configuration dictionary
         :param report_date: Date string for the report
@@ -1039,6 +1884,15 @@ class BossAnalysisBase(ABC):
         analysis_name = plot_config["analysis_name"]
         plot_type = plot_config["type"]
         title = plot_config["title"]
+
+        # Handle death timeline plots separately (they don't use column configuration)
+        if plot_type == "DeathTimelinePlot":
+            if include_death_timelines:
+                self._generate_death_timeline_plot(analysis_name, title, report_date, plot_config)
+                logger.debug(f"Generated individual {plot_type} plots for {title}")
+            else:
+                logger.debug(f"Skipping death timeline plot for {title} (flag disabled)")
+            return
 
         # Column configuration with support for up to 5 columns
         column_key_1 = plot_config["column_key_1"]
@@ -1192,8 +2046,120 @@ class BossAnalysisBase(ABC):
         else:
             raise ValueError(f"Unknown plot type: {plot_type}")
 
-        plot.save()
-        logger.debug(f"Generated {plot_type} for {title}")
+        if plot:
+            plot.save()
+            logger.debug(f"Generated {plot_type} for {title}")
+
+    def _generate_death_timeline_plot(
+        self,
+        analysis_name: str,
+        title: str,
+        report_date: str,
+        plot_config: dict[str, Any],
+    ) -> Optional[DeathTimelinePlot]:
+        """
+        Generate individual death timeline plots for each fight.
+
+        :param analysis_name: Name of the analysis
+        :param title: Plot title
+        :param report_date: Date string for the report
+        :param plot_config: Plot configuration
+        :return: None (saves individual plots directly)
+        """
+        # Find the death timeline data
+        timeline_data = None
+        if self.results:
+            sorted_reports = sorted(self.results, key=lambda x: x["starttime"], reverse=True)
+            for report in sorted_reports:
+                for analysis in report.get("analysis", []):
+                    if analysis.get("name") == analysis_name:
+                        timeline_data = analysis.get("data", [])
+                        break
+                if timeline_data:
+                    break
+
+        if not timeline_data:
+            logger.warning(f"No death timeline data found for analysis {analysis_name}")
+            return None
+
+        # Generate individual plots for each fight
+        if timeline_data:
+            self._save_individual_fight_plots(timeline_data, title, report_date, plot_config)
+
+        return None  # We handle saving directly, so return None
+
+    def _save_individual_fight_plots(
+        self,
+        timeline_data: list[dict[str, Any]],
+        title: str,
+        report_date: str,
+        plot_config: dict[str, Any],
+    ) -> None:
+        """
+        Save individual death timeline plots for each fight in a subfolder.
+
+        :param timeline_data: List of fight timeline data
+        :param title: Plot title
+        :param report_date: Date string for the report
+        :param plot_config: Plot configuration
+        """
+        import re
+        from datetime import datetime
+
+        from ..config.settings import Settings
+
+        # Create subfolder for death timeline plots
+        plots_dir = Settings().plots_directory
+        try:
+            date_obj = datetime.strptime(report_date, "%d.%m.%Y")
+            date_stamp = date_obj.strftime("%Y-%m-%d")
+        except (ValueError, AttributeError):
+            date_stamp = datetime.now().strftime("%Y-%m-%d")
+
+        # Create death_timelines subfolder
+        death_timeline_dir = plots_dir / date_stamp / "death_timelines"
+        death_timeline_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate individual plots for each fight
+        for fight_data in timeline_data:
+            fight_id = fight_data["fight_id"]
+            deaths = fight_data["deaths"]
+
+            if not deaths:
+                logger.debug(f"Skipping fight {fight_id} - no deaths to plot")
+                continue
+
+            # Create individual plot with single fight data
+            fight_plot = DeathTimelinePlot(
+                title=f"{title} - Fight {fight_id}",
+                date=report_date,
+                timeline_data=[fight_data],  # Single fight data
+                figsize=plot_config.get("figsize", (16, 6)),  # Smaller height for single fight
+            )
+
+            # Generate filename for this fight
+            clean_title = re.sub(r"[^\w\s-]", "", title)
+            clean_title = re.sub(r"[-\s]+", "_", clean_title).strip("_").lower()
+            filename = f"{date_stamp}_{clean_title}_fight_{fight_id}.png"
+            file_path = death_timeline_dir / filename
+
+            # Save the individual fight plot
+            fig = fight_plot.create_plot()
+            fig.savefig(
+                file_path,
+                dpi=300,
+                bbox_inches="tight",
+                facecolor="white",
+                edgecolor="none",
+            )
+            logger.info(f"Death timeline plot saved to {file_path}")
+
+            # Close the figure to free memory
+            import matplotlib.pyplot as plt
+
+            plt.close(fig)
+
+        logger.info(f"Generated {len(timeline_data)} individual death timeline plots in {death_timeline_dir}")
 
     def _generate_progress_plots(self) -> None:
         """Generate multi-line progress plots for all enabled configurations."""

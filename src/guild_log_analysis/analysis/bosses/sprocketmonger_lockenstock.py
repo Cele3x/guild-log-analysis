@@ -56,7 +56,7 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             "name": "Jumbo Void Beam Deaths",
             "analysis": {
                 "type": "table_data",
-                "ability_id": 1216674,
+                "ability_id": 1216679,
                 "data_type": "Deaths",
             },
             "plot": {
@@ -169,6 +169,21 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
                 "description": "Durchschnittliche Überlebensdauer",
                 "column_key_1": "survivability_percentage",
                 "column_header_2": "Survivability",
+            },
+        },
+        {
+            "name": "Death Timeline Analysis",
+            "analysis": {
+                "type": "death_timeline",
+                "health_threshold": 50,
+                "damage_window_ms": 10000,
+                "death_grouping_window_ms": 10000,
+                "wipe_cutoff": 4,
+            },
+            "plot": {
+                "type": "DeathTimelinePlot",
+                "description": "Death list showing player deaths with main damage sources (like Warcraft Logs)",
+                "figsize": [12, 8],
             },
         },
     ]

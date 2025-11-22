@@ -191,4 +191,20 @@ class ExampleBossAnalysis(BossAnalysisBase):
                 "description": "Average percentage of fight time survived across all attempts",
             },
         },
+        {
+            "name": "Death Timeline Analysis",
+            "analysis": {
+                "type": "death_timeline",
+                "health_threshold": 50,  # 50% health threshold for non-instant deaths
+                "damage_window_ms": 10000,  # 10 seconds of damage tracking before death
+                "death_grouping_window_ms": 10000,  # 10 seconds for death grouping logic
+                "wipe_cutoff": 4,  # Use default wipe cutoff
+            },
+            "plot": {
+                "type": "DeathTimelinePlot",
+                "title": "Death Timeline Analysis",
+                "description": "Timeline showing player deaths with damage spell information",
+                "figsize": [16, 10],  # Larger figure for timeline visualization
+            },
+        },
     ]

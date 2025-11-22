@@ -8,14 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.5.0] - 2025-07-16
 
 ### Added
+- **Nexus King Salhadaar Boss**: Complete boss analysis implementation with Deaths from Besiege and Missed Ghosts tracking
+- **Death Timeline Analysis**: New `death_timeline` analysis type for detailed death analysis with damage spell tracking and health threshold detection
+- **Generic Events Analysis**: New `events` analysis type for flexible event counting with configurable filtering (event types, pull ignore time)
+- **DeathTimelinePlot**: Death list visualization showing player deaths with damage sources in a clean, readable format
 - **Polarization Blast Hits Analysis**: New custom analysis type for counting damage events with 10-second hit grouping to avoid double-counting rapid hits
 - **Spell Data Configuration**: Added comprehensive spell data system in `spells.yaml` with defensive cooldowns, healing abilities, and raid-wide defensive abilities organized by class
 - **Test Infrastructure**: Complete test directory restructure with centralized output management, fixtures, and comprehensive documentation
 
 ### Enhanced
+- **Death Analysis**: Deaths now use events query (`analyze_deaths_events`) instead of table query for better data quality with killing ability information
 - **GraphQL Query Optimization**: Replaced manual death event counting with native `wipeCutoff` parameter for better performance and server-side filtering
 - **Code Reuse**: Eliminated custom player name queries in favor of base class implementation, reducing code duplication
 - **Sprocketmonger Lockenstock Analysis**: Enhanced boss configuration with Wire Transfer analysis and improved German descriptions
+- **Example Boss**: Updated with death timeline analysis configuration example
 
 ### Fixed
 - **API Efficiency**: Removed redundant death event queries by leveraging GraphQL `wipeCutoff` parameter with default value of 4 deaths
@@ -25,12 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests Organization**: Restructured tests folder with proper output isolation, removed duplicate nested directories, and cleaned up scattered plot files
 - **Performance**: Streamlined custom analysis methods by removing ~100 lines of manual timestamp tracking code
 - **GraphQL Queries**: Consolidated event filtering logic into server-side parameters for better performance
+- **Code Formatting**: Applied black and isort formatting across base analysis module
 
 ### Documentation
 - **Test Structure**: Added comprehensive README files documenting test organization, output directories, and best practices
 - **Spell System**: Documented spell data format and usage patterns for future defensive cooldown analysis
 
 ### Technical Details
+- Death timeline analysis with configurable health threshold and damage window tracking
+- Events analysis with `pull_ignore_time_ms` for filtering early-pull events
+- Death list visualization with instant death detection and damage source tracking
+- `analyze_deaths_events` method provides detailed death event data with ability information
+- `analyze_events` method for generic event filtering and counting
 - Custom analysis methods now use `DEFAULT_WIPE_CUTOFF` (4 deaths) when no cutoff specified
 - GraphQL queries handle wipe cutoff filtering server-side instead of client-side timestamp comparison
 - Test outputs now properly isolated in `tests/output/` with automatic directory creation
