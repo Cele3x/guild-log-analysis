@@ -65,7 +65,7 @@ class TestNexusKingSalhadaarAnalysis:
         assert config["analysis"]["ability_id"] == 1224737
         assert config["analysis"]["event_types"] == ["applydebuff", "applydebuffstack"]
         assert config["analysis"]["pull_ignore_time_ms"] == 15000
-        assert config["analysis"]["wipe_cutoff"] == 5
+        assert config["analysis"]["wipe_cutoff"] == 0
         assert config["plot"]["type"] == "NumberPlot"
         assert config["plot"]["column_key_1"] == "hit_count"
-        assert config["plot"]["column_header_1"] == "Missed Ghosts"
+        assert config["plot"]["column_header_2"] == "Missed Ghosts"

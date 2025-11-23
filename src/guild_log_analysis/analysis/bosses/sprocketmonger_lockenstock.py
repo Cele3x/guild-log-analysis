@@ -172,17 +172,17 @@ class SprocketmongerLockenstockAnalysis(BossAnalysisBase):
             },
         },
         {
-            "name": "Death Timeline Analysis",
+            "name": "Player Deaths",
             "analysis": {
-                "type": "death_timeline",
+                "type": "player_deaths",
                 "health_threshold": 50,
                 "damage_window_ms": 10000,
                 "death_grouping_window_ms": 10000,
                 "wipe_cutoff": 4,
             },
             "plot": {
-                "type": "DeathTimelinePlot",
-                "description": "Death list showing player deaths with main damage sources (like Warcraft Logs)",
+                "type": "PlayerDeathsPlot",
+                "description": "Player deaths showing all deaths with main damage sources",
                 "figsize": [12, 8],
             },
         },

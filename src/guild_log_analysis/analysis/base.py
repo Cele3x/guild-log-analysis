@@ -16,8 +16,8 @@ import pandas as pd
 from ..api.client import WarcraftLogsAPIClient
 from ..config.constants import DEFAULT_WIPE_CUTOFF, PlotColors
 from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot, SurvivabilityPlot
-from ..plotting.death_timeline import DeathTimelinePlot
 from ..plotting.multi_line import MultiLinePlot
+from ..plotting.player_deaths import PlayerDeathsPlot
 from ..utils.helpers import filter_players_by_roles
 
 logger = logging.getLogger(__name__)
@@ -198,8 +198,8 @@ class BossAnalysisBase(ABC):
                 fight_ids=fight_ids,
                 report_players=filtered_players,
             )
-        elif analysis_type == "death_timeline":
-            data = self.analyze_death_timeline(
+        elif analysis_type == "player_deaths":
+            data = self.analyze_player_deaths(
                 report_code=report_code,
                 config=config,
                 fight_ids=fight_ids,
@@ -1263,7 +1263,7 @@ class BossAnalysisBase(ABC):
             logger.error(f"Error analyzing events for report {report_code}: {e}")
             return []
 
-    def analyze_death_timeline(
+    def analyze_player_deaths(
         self,
         report_code: str,
         config: dict[str, Any],
@@ -1438,7 +1438,7 @@ class BossAnalysisBase(ABC):
             # Extract maxHitPoints from death events and damage events
             player_max_hp = self._extract_max_hp_from_events(death_events, damage_events, player_names)
 
-            # Process death timeline data organized by player
+            # Process player deaths data organized by player
             player_death_data = self._process_player_deaths(
                 death_events,
                 damage_events,
@@ -1456,7 +1456,7 @@ class BossAnalysisBase(ABC):
             return player_death_data
 
         except Exception as e:
-            logger.error(f"Error analyzing death timeline for report {report_code}: {e}")
+            logger.error(f"Error analyzing player deaths for report {report_code}: {e}")
             return []
 
     def _extract_max_hp_from_events(
@@ -1922,15 +1922,15 @@ class BossAnalysisBase(ABC):
 
         return result[:10]  # Return top 10 damage sources
 
-    def generate_plots(self, include_progress_plots: bool = True, include_death_timelines: bool = False) -> None:
+    def generate_plots(self, include_progress_plots: bool = True, include_player_deaths: bool = False) -> None:
         """
         Generate plots using configuration.
 
         :param include_progress_plots: Whether to generate progress plots (default: True)
-        :param include_death_timelines: Whether to generate death timeline plots (default: False)
+        :param include_player_deaths: Whether to generate player deaths plots (default: False)
         """
         if self.CONFIG:
-            self._generate_plots_generic(include_death_timelines=include_death_timelines)
+            self._generate_plots_generic(include_player_deaths=include_player_deaths)
             if include_progress_plots:
                 self._generate_progress_plots()
         else:
@@ -1944,10 +1944,10 @@ class BossAnalysisBase(ABC):
         """
         raise NotImplementedError("Either implement CONFIG or override _generate_plots_legacy")
 
-    def _generate_plots_generic(self, include_death_timelines: bool = False) -> None:
+    def _generate_plots_generic(self, include_player_deaths: bool = False) -> None:
         """Generate plots using configuration.
 
-        :param include_death_timelines: Whether to generate death timeline plots (default: False)
+        :param include_player_deaths: Whether to generate player deaths plots (default: False)
         """
         logger.info(f"Generating plots for {self.boss_name} analysis")
 
@@ -1985,7 +1985,7 @@ class BossAnalysisBase(ABC):
                     report_date,
                     current_fight_duration,
                     previous_fight_duration,
-                    include_death_timelines=include_death_timelines,
+                    include_player_deaths=include_player_deaths,
                 )
             except Exception as e:
                 title = config.get("title") or config.get("name", "Unknown")
@@ -1998,12 +1998,12 @@ class BossAnalysisBase(ABC):
         report_date: str,
         current_fight_duration: Optional[int],
         previous_fight_duration: Optional[int],
-        include_death_timelines: bool = False,
+        include_player_deaths: bool = False,
     ) -> None:
         """
         Generate a single plot based on configuration.
 
-        :param include_death_timelines: Whether to generate death timeline plots (default: False)
+        :param include_player_deaths: Whether to generate player deaths plots (default: False)
 
         :param plot_config: Plot configuration dictionary
         :param report_date: Date string for the report
@@ -2014,13 +2014,13 @@ class BossAnalysisBase(ABC):
         plot_type = plot_config["type"]
         title = plot_config["title"]
 
-        # Handle death timeline plots separately (they don't use column configuration)
-        if plot_type == "DeathTimelinePlot":
-            if include_death_timelines:
-                self._generate_death_timeline_plot(analysis_name, title, report_date, plot_config)
+        # Handle player deaths plots separately (they don't use column configuration)
+        if plot_type == "PlayerDeathsPlot":
+            if include_player_deaths:
+                self._generate_player_deaths_plot(analysis_name, title, report_date, plot_config)
                 logger.debug(f"Generated individual {plot_type} plots for {title}")
             else:
-                logger.debug(f"Skipping death timeline plot for {title} (flag disabled)")
+                logger.debug(f"Skipping player deaths plot for {title} (flag disabled)")
             return
 
         # Column configuration with support for up to 5 columns
@@ -2179,15 +2179,15 @@ class BossAnalysisBase(ABC):
             plot.save()
             logger.debug(f"Generated {plot_type} for {title}")
 
-    def _generate_death_timeline_plot(
+    def _generate_player_deaths_plot(
         self,
         analysis_name: str,
         title: str,
         report_date: str,
         plot_config: dict[str, Any],
-    ) -> Optional[DeathTimelinePlot]:
+    ) -> Optional[PlayerDeathsPlot]:
         """
-        Generate death timeline plot for player deaths across all fights.
+        Generate player deaths plot for player deaths across all fights.
 
         :param analysis_name: Name of the analysis
         :param title: Plot title
@@ -2195,7 +2195,7 @@ class BossAnalysisBase(ABC):
         :param plot_config: Plot configuration
         :return: None (saves plot directly)
         """
-        # Find the death timeline data
+        # Find the player deaths data
         player_data = None
         if self.results:
             sorted_reports = sorted(self.results, key=lambda x: x["starttime"], reverse=True)
@@ -2208,7 +2208,7 @@ class BossAnalysisBase(ABC):
                     break
 
         if not player_data:
-            logger.warning(f"No death timeline data found for analysis {analysis_name}")
+            logger.warning(f"No player deaths data found for analysis {analysis_name}")
             return None
 
         # Generate plot for player deaths
@@ -2225,7 +2225,7 @@ class BossAnalysisBase(ABC):
         plot_config: dict[str, Any],
     ) -> None:
         """
-        Save death timeline plots for each player in a subfolder.
+        Save player deaths plots for each player in a subfolder.
 
         :param player_data: List of player death data
         :param title: Plot title
@@ -2237,7 +2237,7 @@ class BossAnalysisBase(ABC):
 
         from ..config.settings import Settings
 
-        # Create subfolder for death timeline plots
+        # Create subfolder for player deaths plots
         plots_dir = Settings().plots_directory
         try:
             date_obj = datetime.strptime(report_date, "%d.%m.%Y")
@@ -2259,7 +2259,7 @@ class BossAnalysisBase(ABC):
                 continue
 
             # Create plot for this player
-            player_plot = DeathTimelinePlot(
+            player_plot = PlayerDeathsPlot(
                 title=f"{title} - {player_name}",
                 date=report_date,
                 player_data=[player_info],  # Single player data
@@ -2280,14 +2280,14 @@ class BossAnalysisBase(ABC):
                 facecolor=PlotColors.BACKGROUND,
                 edgecolor="none",
             )
-            logger.info(f"Death timeline plot saved to {file_path}")
+            logger.info(f"Player deaths plot saved to {file_path}")
 
             # Close the figure to free memory
             import matplotlib.pyplot as plt
 
             plt.close(fig)
 
-        logger.info(f"Generated {len(player_data)} player death timeline plots in {deaths_dir}")
+        logger.info(f"Generated {len(player_data)} player deaths plots in {deaths_dir}")
 
     def _generate_progress_plots(self) -> None:
         """Generate multi-line progress plots for all enabled configurations."""

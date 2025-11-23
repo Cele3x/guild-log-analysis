@@ -1,7 +1,7 @@
 """
-Death Timeline Visualization module for Guild Log Analysis.
+Player Deaths Visualization module for Guild Log Analysis.
 
-This module provides visualization classes for death timeline analysis,
+This module provides visualization classes for player deaths analysis,
 showing player deaths across all fights in a table format.
 """
 
@@ -17,9 +17,9 @@ from .styles import PlotColors, PlotStyleManager
 logger = logging.getLogger(__name__)
 
 
-class DeathTimelinePlot:
+class PlayerDeathsPlot:
     """
-    Player-centric death timeline visualization.
+    Player-centric deaths visualization.
 
     Creates a table showing all deaths for a specific player across all fights,
     including fight number, time of death, and top damage sources.
@@ -33,7 +33,7 @@ class DeathTimelinePlot:
         figsize: tuple[int, int] = (18, 12),
     ) -> None:
         """
-        Initialize death timeline plot.
+        Initialize player deaths plot.
 
         :param title: Plot title
         :param date: Date string for the plot
@@ -58,7 +58,7 @@ class DeathTimelinePlot:
 
     def create_plot(self) -> plt.Figure:
         """
-        Create the death timeline table visualization.
+        Create the player deaths table visualization.
 
         :return: Matplotlib figure object
         """
@@ -98,7 +98,7 @@ class DeathTimelinePlot:
         ax.text(
             0.5,
             0.5,
-            "No death timeline data available",
+            "No player deaths data available",
             ha="center",
             va="center",
             transform=ax.transAxes,
@@ -392,7 +392,7 @@ class DeathTimelinePlot:
         )
         plt.close(fig)
 
-        logger.info(f"Death timeline plot saved to {file_path}")
+        logger.info(f"Player deaths plot saved to {file_path}")
         return str(file_path)
 
     def show(self) -> None:

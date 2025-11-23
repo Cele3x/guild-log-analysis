@@ -125,13 +125,13 @@ class GuildLogAnalyzer:
         :return: The plot generation method function
         """
 
-        def generate_plots_method(include_progress_plots: bool = True, include_death_timelines: bool = False) -> None:
+        def generate_plots_method(include_progress_plots: bool = True, include_player_deaths: bool = False) -> None:
             if boss_name not in self.analyses:
                 logger.warning(f"No {boss_name} analysis found. Run analyze_{boss_name}() first.")
                 return
 
             self.analyses[boss_name].generate_plots(
-                include_progress_plots=include_progress_plots, include_death_timelines=include_death_timelines
+                include_progress_plots=include_progress_plots, include_player_deaths=include_player_deaths
             )
 
         # Set proper method name and docstring
@@ -139,7 +139,7 @@ class GuildLogAnalyzer:
         generate_plots_method.__doc__ = (
             f"Generate plots for {boss_name} analysis.\n\n"
             ":param include_progress_plots: Whether to generate progress plots (default: True)\n"
-            ":param include_death_timelines: Whether to generate death timeline plots (default: False)"
+            ":param include_player_deaths: Whether to generate player deaths plots (default: False)"
         )
 
         return generate_plots_method

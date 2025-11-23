@@ -53,16 +53,16 @@ class NexusKingSalhadaarAnalysis(BossAnalysisBase):
             },
         },
         {
-            "name": "Death Timeline Analysis",
+            "name": "Player Deaths",
             "analysis": {
-                "type": "death_timeline",
+                "type": "player_deaths",
                 "player_names": None,  # None = all players, or list like ["Ylea", "PlayerName"]
                 "damage_window_ms": 10000,
                 "wipe_cutoff": 0,
             },
             "plot": {
-                "type": "DeathTimelinePlot",
-                "description": "Death timeline showing all deaths for each player across all fights",
+                "type": "PlayerDeathsPlot",
+                "description": "Player deaths showing all deaths for each player across all fights",
                 "figsize": [18, 12],
             },
         },

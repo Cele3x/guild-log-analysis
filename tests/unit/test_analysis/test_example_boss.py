@@ -103,7 +103,7 @@ class TestExampleBossAnalysis:
         assert "Deaths from Fire Mechanic" in names
         assert "All Deaths" in names
         assert "Player Survivability" in names
-        assert "Death Timeline Analysis" in names
+        assert "Player Deaths" in names
 
     def test_filter_expressions(self, analysis):
         """Test filter expressions in configurations."""
@@ -175,17 +175,17 @@ class TestExampleBossAnalysis:
         assert "ability_id" not in all_deaths_config["analysis"]  # No ability filter
         assert all_deaths_config["analysis"]["wipe_cutoff"] == 3
 
-    def test_death_timeline_config(self, analysis):
-        """Test death timeline analysis configuration."""
-        config = next((c for c in analysis.CONFIG if c["name"] == "Death Timeline Analysis"), None)
+    def test_player_deaths_config(self, analysis):
+        """Test player deaths analysis configuration."""
+        config = next((c for c in analysis.CONFIG if c["name"] == "Player Deaths"), None)
         assert config is not None
-        assert config["analysis"]["type"] == "death_timeline"
+        assert config["analysis"]["type"] == "player_deaths"
         assert config["analysis"]["health_threshold"] == 50
         assert config["analysis"]["damage_window_ms"] == 10000
         assert config["analysis"]["death_grouping_window_ms"] == 10000
         assert config["analysis"]["wipe_cutoff"] == 4
         assert "roles" not in config  # All roles
-        assert config["plot"]["type"] == "DeathTimelinePlot"
-        assert config["plot"]["title"] == "Death Timeline Analysis"
-        assert config["plot"]["description"] == "Timeline showing player deaths with damage spell information"
+        assert config["plot"]["type"] == "PlayerDeathsPlot"
+        assert config["plot"]["title"] == "Player Deaths"
+        assert config["plot"]["description"] == "Player deaths showing all deaths with damage information"
         assert config["plot"]["figsize"] == [16, 10]

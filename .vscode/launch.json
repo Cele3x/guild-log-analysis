@@ -1,0 +1,99 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Guild Analysis",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.guild_log_analysis.cli",
+            "args": [
+                "--reports", "${input:reportIds}",
+                "--boss", "${input:bossSelection}"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Guild Analysis (Player Deaths)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.guild_log_analysis.cli",
+            "args": [
+                "--reports", "${input:reportIds}",
+                "--boss", "${input:bossSelection}",
+                "--player-deaths"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Guild Analysis (Player Deaths - Filtered)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.guild_log_analysis.cli",
+            "args": [
+                "--reports", "${input:reportIds}",
+                "--boss", "${input:bossSelection}",
+                "--player-deaths",
+                "--player-names", "${input:playerNames}"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Guild Analysis (Full - Progress + Player Deaths)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.guild_log_analysis.cli",
+            "args": [
+                "--reports", "${input:reportIds}",
+                "--boss", "${input:bossSelection}",
+                "--progress-plots",
+                "--player-deaths"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "reportIds",
+            "type": "promptString",
+            "description": "Enter report ID(s) - separate multiple with spaces"
+        },
+        {
+            "id": "bossSelection",
+            "type": "pickString",
+            "description": "Select boss to analyze",
+            "options": [
+                {
+                    "label": "One-Armed Bandit",
+                    "value": "one_armed_bandit"
+                },
+                {
+                    "label": "Sprocketmonger Lockenstock",
+                    "value": "sprocketmonger_lockenstock"
+                },
+                {
+                    "label": "Nexus-King Salhadaar",
+                    "value": "nexus_king_salhadaar"
+                },
+                {
+                    "label": "Example Boss (Testing)",
+                    "value": "example_boss"
+                }
+            ],
+            "default": "nexus_king_salhadaar"
+        },
+        {
+            "id": "playerNames",
+            "type": "promptString",
+            "description": "Enter player name(s) to filter (comma-separated, or leave blank for all)",
+            "default": ""
+        }
+    ]
+}

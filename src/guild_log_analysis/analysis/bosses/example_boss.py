@@ -192,19 +192,19 @@ class ExampleBossAnalysis(BossAnalysisBase):
             },
         },
         {
-            "name": "Death Timeline Analysis",
+            "name": "Player Deaths",
             "analysis": {
-                "type": "death_timeline",
+                "type": "player_deaths",
                 "health_threshold": 50,  # 50% health threshold for non-instant deaths
                 "damage_window_ms": 10000,  # 10 seconds of damage tracking before death
                 "death_grouping_window_ms": 10000,  # 10 seconds for death grouping logic
                 "wipe_cutoff": 4,  # Use default wipe cutoff
             },
             "plot": {
-                "type": "DeathTimelinePlot",
-                "title": "Death Timeline Analysis",
-                "description": "Timeline showing player deaths with damage spell information",
-                "figsize": [16, 10],  # Larger figure for timeline visualization
+                "type": "PlayerDeathsPlot",
+                "title": "Player Deaths",
+                "description": "Player deaths showing all deaths with damage information",
+                "figsize": [16, 10],  # Larger figure for deaths visualization
             },
         },
     ]

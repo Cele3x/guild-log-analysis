@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Nexus King Salhadaar Boss**: Complete boss analysis implementation with Deaths from Besiege and Missed Ghosts tracking
-- **Death Timeline Analysis**: New `death_timeline` analysis type for detailed death analysis with damage spell tracking and health threshold detection
-- **Player-Centric Death Timeline**: Individual death timeline plots per player showing all deaths across all fights with multi-player support
-- **Killing Blow Highlighting**: Visual markers (⚔) and bold text to identify the final damage source in death timeline
-- **Fight Length Display**: Added Fight Length column to death timeline showing total fight duration
+- **Player Deaths Analysis**: New `player_deaths` analysis type for detailed death analysis with damage spell tracking and health threshold detection
+- **Player-Centric Deaths Visualization**: Individual death plots per player showing all deaths across all fights with multi-player support
+- **Killing Blow Highlighting**: Visual markers (⚔) and bold text to identify the final damage source in player deaths
+- **Fight Length Display**: Added Fight Length column to player deaths showing total fight duration
+- **Player Names Filter**: New `--player-names` CLI argument for filtering specific players in death analysis (comma-separated list)
+- **Filtered Player Deaths Launch Config**: New VSCode debug configuration "Guild Analysis (Player Deaths - Filtered)" with player names input
 - **Generic Events Analysis**: New `events` analysis type for flexible event counting with configurable filtering (event types, pull ignore time)
-- **DeathTimelinePlot**: Death list visualization showing player deaths with damage sources in a clean, readable format
+- **PlayerDeathsPlot**: Player deaths visualization showing all deaths with damage sources in a clean, readable format
 - **Polarization Blast Hits Analysis**: New custom analysis type for counting damage events with 10-second hit grouping to avoid double-counting rapid hits
 - **Spell Data Configuration**: Added comprehensive spell data system in `spells.yaml` with defensive cooldowns, healing abilities, and raid-wide defensive abilities organized by class
 - **Test Infrastructure**: Complete test directory restructure with centralized output management, fixtures, and comprehensive documentation
@@ -30,8 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Example Boss**: Updated with death timeline analysis configuration example
 
 ### Changed
-- **Death Timeline Configuration**: Changed `player_name` to `player_names` (list) for multi-player support
-- **Death Timeline Output**: Plots now saved to `deaths` subdirectory with format `{date}_Deaths_{PlayerName}.png`
+- **Renamed "Death Timelines" to "Player Deaths"**: Complete renaming for clarity and consistency
+  - CLI argument: `--death-timelines` → `--player-deaths`
+  - Analysis type: `death_timeline` → `player_deaths`
+  - Plot type: `DeathTimelinePlot` → `PlayerDeathsPlot`
+  - Module: `death_timeline.py` → `player_deaths.py`
+  - All methods, parameters, and strings updated accordingly
+- **Player Deaths Configuration**: Changed `player_name` to `player_names` (list) for multi-player support
+- **Player Deaths Output**: Plots now saved to `deaths` subdirectory with format `{date}_Deaths_{PlayerName}.png`
 - **Default Log Level**: Changed from INFO to DEBUG for better development diagnostics
 
 ### Fixed

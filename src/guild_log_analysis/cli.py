@@ -56,13 +56,23 @@ Examples:
         default=False,
     )
 
-    # Death timeline plots flag (disabled by default)
+    # Player deaths plots flag (disabled by default)
     parser.add_argument(
-        "--death-timelines",
-        "-t",
+        "--player-deaths",
         action="store_true",
-        help="Generate death timeline plots for each fight",
+        help="Generate player deaths plots for each player",
         default=False,
+    )
+
+    # Player names filter for deaths
+    parser.add_argument(
+        "--player-names",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of player names to filter for deaths analysis "
+            "(e.g., 'Ylea,PlayerName'). Leave empty for all players."
+        ),
     )
 
     # List available bosses
@@ -213,6 +223,16 @@ def run_analysis(args: argparse.Namespace) -> None:
     # Initialize analyzer (uses .env variables for authentication)
     analyzer = GuildLogAnalyzer()
 
+    # Parse player names filter if provided
+    player_names_filter = None
+    if args.player_names:
+        player_names_filter = [name.strip() for name in args.player_names.split(",")]
+        logger.info(f"Filtering player deaths for: {', '.join(player_names_filter)}")
+        logger.warning(
+            "Note: --player-names CLI argument sets a filter, but you must also "
+            "configure player_names in the boss CONFIG"
+        )
+
     # Get the analyze method for the specified boss
     analyze_method_name = f"analyze_{args.boss}"
     if not hasattr(analyzer, analyze_method_name):
@@ -230,13 +250,13 @@ def run_analysis(args: argparse.Namespace) -> None:
     if hasattr(analyzer, plot_method_name):
         plot_method = getattr(analyzer, plot_method_name)
         logger.info("Generating plots...")
-        plot_method(include_progress_plots=args.progress_plots, include_death_timelines=args.death_timelines)
+        plot_method(include_progress_plots=args.progress_plots, include_player_deaths=args.player_deaths)
 
         plot_types = []
         if args.progress_plots:
             plot_types.append("progress plots")
-        if args.death_timelines:
-            plot_types.append("death timelines")
+        if args.player_deaths:
+            plot_types.append("player deaths")
 
         if plot_types:
             logger.info(f"Plot generation (including {', '.join(plot_types)}) completed successfully")
