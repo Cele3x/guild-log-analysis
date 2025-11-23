@@ -1293,7 +1293,9 @@ class BossAnalysisBase(ABC):
 
         wipe_cutoff = config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF)
         damage_window_ms = config.get("damage_window_ms", 10000)  # 10 seconds before death
-        player_names_filter = config.get("player_names")  # Optional list of player names to filter
+
+        # Use CLI override if provided, otherwise use config value
+        player_names_filter = getattr(self, "cli_player_names_filter", None) or config.get("player_names")
 
         # Create player name and class mappings
         player_names = {player.get("id"): player.get("name") for player in report_players}

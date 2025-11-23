@@ -223,15 +223,11 @@ def run_analysis(args: argparse.Namespace) -> None:
     # Initialize analyzer (uses .env variables for authentication)
     analyzer = GuildLogAnalyzer()
 
-    # Parse player names filter if provided
-    player_names_filter = None
+    # Parse and set player names filter if provided
     if args.player_names:
         player_names_filter = [name.strip() for name in args.player_names.split(",")]
-        logger.info(f"Filtering player deaths for: {', '.join(player_names_filter)}")
-        logger.warning(
-            "Note: --player-names CLI argument sets a filter, but you must also "
-            "configure player_names in the boss CONFIG"
-        )
+        analyzer.cli_player_names_filter = player_names_filter
+        logger.info(f"CLI player names filter set: {', '.join(player_names_filter)}")
 
     # Get the analyze method for the specified boss
     analyze_method_name = f"analyze_{args.boss}"

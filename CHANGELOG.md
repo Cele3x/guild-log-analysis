@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Default Log Level**: Changed from INFO to DEBUG for better development diagnostics
 
 ### Fixed
+- **CLI Player Names Filter**: Fixed `--player-names` argument to properly override boss CONFIG settings for player deaths filtering
 - **API Efficiency**: Removed redundant death event queries by leveraging GraphQL `wipeCutoff` parameter with default value of 4 deaths
 - **Memory Usage**: Simplified player name resolution using existing base class data instead of additional API calls
 

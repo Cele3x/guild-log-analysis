@@ -100,12 +100,8 @@ class TestFullAnalysisWorkflow:
 
         # Verify generate_plots was called with the correct parameters
         assert mock_analysis.generate_plots.call_count == 2
-        mock_analysis.generate_plots.assert_any_call(
-            include_progress_plots=True, include_player_deaths=False
-        )
-        mock_analysis.generate_plots.assert_any_call(
-            include_progress_plots=False, include_player_deaths=False
-        )
+        mock_analysis.generate_plots.assert_any_call(include_progress_plots=True, include_player_deaths=False)
+        mock_analysis.generate_plots.assert_any_call(include_progress_plots=False, include_player_deaths=False)
 
     @patch("src.guild_log_analysis.main.get_access_token")
     @patch("src.guild_log_analysis.plotting.NumberPlot")

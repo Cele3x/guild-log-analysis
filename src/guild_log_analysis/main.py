@@ -44,6 +44,7 @@ class GuildLogAnalyzer:
 
         self.api_client = WarcraftLogsAPIClient(access_token=token)
         self.analyses: dict[str, Any] = {}
+        self.cli_player_names_filter: list[str] | None = None  # CLI override for player deaths filtering
         logger.debug("API client initialized successfully")
 
         # Auto-register boss analysis methods
@@ -105,6 +106,10 @@ class GuildLogAnalyzer:
 
         def analyze_method(report_codes: list[str]) -> None:
             analysis = boss_class(self.api_client)
+            # Set CLI player names filter if provided
+            if self.cli_player_names_filter:
+                analysis.cli_player_names_filter = self.cli_player_names_filter
+                logger.info(f"Applied CLI player names filter: {', '.join(self.cli_player_names_filter)}")
             logger.info(f"Initialized {boss_name} analysis for {len(report_codes)} reports")
             analysis.analyze(report_codes)
             self.analyses[boss_name] = analysis
