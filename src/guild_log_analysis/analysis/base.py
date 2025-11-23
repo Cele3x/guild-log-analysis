@@ -14,7 +14,7 @@ from typing import Any, Optional
 import pandas as pd
 
 from ..api.client import WarcraftLogsAPIClient
-from ..config.constants import DEFAULT_WIPE_CUTOFF
+from ..config.constants import DEFAULT_WIPE_CUTOFF, PlotColors
 from ..plotting.base import HitCountPlot, NumberPlot, PercentagePlot, SurvivabilityPlot
 from ..plotting.death_timeline import DeathTimelinePlot
 from ..plotting.multi_line import MultiLinePlot
@@ -1271,20 +1271,20 @@ class BossAnalysisBase(ABC):
         report_players: Optional[list[dict[str, Any]]] = None,
     ) -> list[dict[str, Any]]:
         """
-        Analyze player deaths with proper death events API.
+        Analyze player deaths across all fights for a specific player.
 
         This method analyzes player deaths by:
         1. Using the Deaths dataType to get actual death events
-        2. Filtering deaths based on health threshold and instant death detection
-        3. Tracking damage spells leading to death
-        4. Grouping deaths intelligently (4 deaths + 10-second window logic)
-        5. Generating death list data for visualization
+        2. Collecting ALL deaths for the specified player (no filtering)
+        3. Tracking top 3 damage sources with % of max HP for each death
+        4. Supporting multiple deaths per fight (resurrections)
+        5. Organizing data by player for visualization
 
         :param report_code: The WarcraftLogs report code
         :param config: Analysis configuration dictionary
         :param fight_ids: Set of fight IDs to analyze
         :param report_players: List of players who participated in the fights
-        :return: List of death timeline data per fight
+        :return: List of player death data
         """
         if not fight_ids:
             fight_ids = self.get_fight_ids(report_code)
@@ -1292,12 +1292,12 @@ class BossAnalysisBase(ABC):
             report_players = self.get_participants(report_code, fight_ids)
 
         wipe_cutoff = config.get("wipe_cutoff", DEFAULT_WIPE_CUTOFF)
-        health_threshold = config.get("health_threshold", 50)  # 50% health threshold
         damage_window_ms = config.get("damage_window_ms", 10000)  # 10 seconds before death
-        death_grouping_window_ms = config.get("death_grouping_window_ms", 10000)  # 10 seconds
+        player_names_filter = config.get("player_names")  # Optional list of player names to filter
 
-        # Create player name mapping
+        # Create player name and class mappings
         player_names = {player.get("id"): player.get("name") for player in report_players}
+        player_classes = {player.get("id"): player.get("type", "").upper() for player in report_players}
 
         try:
             # First get fight details to get start times
@@ -1419,12 +1419,14 @@ class BossAnalysisBase(ABC):
                 logger.warning(f"No damage events returned for any fight in report {report_code}")
                 return []
 
-            # Extract fight start times
+            # Extract fight start times and durations
             fight_start_times = {}
+            fight_durations = {}
             if fight_details_result and "data" in fight_details_result:
                 fights = fight_details_result["data"]["reportData"]["report"]["fights"]
                 for fight in fights:
                     fight_start_times[fight["id"]] = fight["startTime"]
+                    fight_durations[fight["id"]] = (fight["endTime"] - fight["startTime"]) / 1000.0
 
             death_events = death_result["data"]["reportData"]["report"]["events"]["data"]
             damage_events = all_damage_events
@@ -1436,21 +1438,22 @@ class BossAnalysisBase(ABC):
             # Extract maxHitPoints from death events and damage events
             player_max_hp = self._extract_max_hp_from_events(death_events, damage_events, player_names)
 
-            # Process death timeline data
-            timeline_data = self._process_death_events(
+            # Process death timeline data organized by player
+            player_death_data = self._process_player_deaths(
                 death_events,
                 damage_events,
                 player_names,
+                player_classes,
                 fight_start_times,
-                health_threshold,
+                fight_durations,
                 damage_window_ms,
-                death_grouping_window_ms,
                 ability_lookup,
                 player_max_hp,
+                player_names_filter,
             )
 
-            logger.info(f"Analyzed death events for report {report_code}: {len(timeline_data)} fights processed")
-            return timeline_data
+            logger.info(f"Analyzed death events for report {report_code}: {len(player_death_data)} players with deaths")
+            return player_death_data
 
         except Exception as e:
             logger.error(f"Error analyzing death timeline for report {report_code}: {e}")
@@ -1508,11 +1511,134 @@ class BossAnalysisBase(ABC):
 
         return player_max_hp
 
+    def _process_player_deaths(
+        self,
+        death_events: list[dict[str, Any]],
+        damage_events: list[dict[str, Any]],
+        player_names: dict[int, str],
+        player_classes: dict[int, str],
+        fight_start_times: dict[int, int],
+        fight_durations: dict[int, float],
+        damage_window_ms: int,
+        ability_lookup: dict[int, str],
+        player_max_hp: dict[int, int],
+        player_names_filter: Optional[list[str]] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Process death events organized by player across all fights.
+
+        :param death_events: List of death events from API
+        :param damage_events: List of damage events from API
+        :param player_names: Dictionary mapping player IDs to names
+        :param player_classes: Dictionary mapping player IDs to class names
+        :param fight_start_times: Dictionary mapping fight IDs to start times
+        :param fight_durations: Dictionary mapping fight IDs to durations in seconds
+        :param damage_window_ms: Time window to look back for damage events
+        :param ability_lookup: Dictionary mapping ability IDs to names
+        :param player_max_hp: Dictionary mapping player IDs to their maxHitPoints
+        :param player_names_filter: Optional list of player names to filter deaths for
+        :return: List of player death data
+        """
+        # Group events by fight for efficient lookups
+        damage_by_fight = defaultdict(list)
+        for event in damage_events:
+            if event.get("type") == "damage":
+                damage_by_fight[event["fight"]].append(event)
+
+        # Collect all deaths organized by player
+        deaths_by_player = defaultdict(list)
+        total_death_events = sum(1 for event in death_events if event.get("type") == "death")
+        logger.info(f"Processing {total_death_events} total death events across all fights")
+
+        for event in death_events:
+            if event.get("type") == "death":
+                player_id = event["targetID"]
+                player_name = player_names.get(player_id, f"Player {player_id}")
+
+                # Apply player names filter if specified
+                if player_names_filter and player_name not in player_names_filter:
+                    continue
+
+                fight_id = event["fight"]
+                death_timestamp = event["timestamp"]
+                fight_start_time = fight_start_times.get(fight_id, 0)
+                fight_time_seconds = (death_timestamp - fight_start_time) / 1000.0
+                fight_length_seconds = fight_durations.get(fight_id, 0.0)
+
+                # Get damage events for this fight
+                fight_damage = damage_by_fight.get(fight_id, [])
+
+                # Find top damage sources before death
+                max_hit_points = player_max_hp.get(player_id)
+                damage_spells = self._get_damage_before_death(
+                    fight_damage,
+                    player_id,
+                    death_timestamp,
+                    damage_window_ms,
+                    ability_lookup,
+                    max_hit_points,
+                )
+
+                # Get top 3 damage sources
+                top_damage_sources = damage_spells[:3] if damage_spells else []
+
+                # Identify the killing blow (most recent damage among top 3)
+                killing_blow_timestamp = -1
+                if top_damage_sources:
+                    killing_blow_timestamp = max(spell.get("last_hit_timestamp", 0) for spell in top_damage_sources)
+
+                death_data = {
+                    "fight_id": fight_id,
+                    "fight_time_seconds": fight_time_seconds,
+                    "fight_length_seconds": fight_length_seconds,
+                    "damage_sources": [
+                        {
+                            "name": spell["ability_name"],
+                            "damage": spell["damage"],
+                            "hp_percentage": spell.get("health_percentage", 0),
+                            "is_killing_blow": spell.get("last_hit_timestamp", 0) == killing_blow_timestamp,
+                        }
+                        for spell in top_damage_sources
+                    ],
+                }
+
+                deaths_by_player[player_id].append(death_data)
+
+        # Convert to list format and sort deaths by fight number
+        result = []
+        for player_id, deaths in deaths_by_player.items():
+            player_name = player_names.get(player_id, f"Player {player_id}")
+            player_class = player_classes.get(player_id, "Unknown")
+
+            # Sort deaths by fight_id
+            deaths.sort(key=lambda x: x["fight_id"])
+
+            # Log player death counts
+            fight_ids = sorted(set(d["fight_id"] for d in deaths))
+            logger.info(
+                f"Player {player_name}: {len(deaths)} deaths across {len(fight_ids)} fights (fights: {fight_ids})"
+            )
+
+            result.append(
+                {
+                    "player_id": player_id,
+                    "player_name": player_name,
+                    "player_class": player_class,
+                    "deaths": deaths,
+                }
+            )
+
+        # Sort by player name
+        result.sort(key=lambda x: x["player_name"])
+
+        return result
+
     def _process_death_events(
         self,
         death_events: list[dict[str, Any]],
         damage_events: list[dict[str, Any]],
         player_names: dict[int, str],
+        player_classes: dict[int, str],
         fight_start_times: dict[int, int],
         health_threshold: int,
         damage_window_ms: int,
@@ -1526,6 +1652,7 @@ class BossAnalysisBase(ABC):
         :param death_events: List of death events from API
         :param damage_events: List of damage events from API
         :param player_names: Dictionary mapping player IDs to names
+        :param player_classes: Dictionary mapping player IDs to class names
         :param fight_start_times: Dictionary mapping fight IDs to start times
         :param health_threshold: Health percentage threshold for non-instant deaths
         :param damage_window_ms: Time window to look back for damage events
@@ -1573,6 +1700,7 @@ class BossAnalysisBase(ABC):
             for death in analyzed_deaths:
                 player_id = death["targetID"]
                 player_name = player_names.get(player_id, f"Player {player_id}")
+                player_class = player_classes.get(player_id, "Unknown")
                 death_timestamp = death["timestamp"]
 
                 # Calculate health percentage before death (not after, since after death = 0%)
@@ -1620,6 +1748,7 @@ class BossAnalysisBase(ABC):
                 death_data = {
                     "player_id": player_id,
                     "player_name": player_name,
+                    "player_class": player_class,
                     "timestamp": death_timestamp,
                     "fight_time_seconds": fight_time_seconds,
                     "health_percentage": health_before_death,
@@ -2058,47 +2187,47 @@ class BossAnalysisBase(ABC):
         plot_config: dict[str, Any],
     ) -> Optional[DeathTimelinePlot]:
         """
-        Generate individual death timeline plots for each fight.
+        Generate death timeline plot for player deaths across all fights.
 
         :param analysis_name: Name of the analysis
         :param title: Plot title
         :param report_date: Date string for the report
         :param plot_config: Plot configuration
-        :return: None (saves individual plots directly)
+        :return: None (saves plot directly)
         """
         # Find the death timeline data
-        timeline_data = None
+        player_data = None
         if self.results:
             sorted_reports = sorted(self.results, key=lambda x: x["starttime"], reverse=True)
             for report in sorted_reports:
                 for analysis in report.get("analysis", []):
                     if analysis.get("name") == analysis_name:
-                        timeline_data = analysis.get("data", [])
+                        player_data = analysis.get("data", [])
                         break
-                if timeline_data:
+                if player_data:
                     break
 
-        if not timeline_data:
+        if not player_data:
             logger.warning(f"No death timeline data found for analysis {analysis_name}")
             return None
 
-        # Generate individual plots for each fight
-        if timeline_data:
-            self._save_individual_fight_plots(timeline_data, title, report_date, plot_config)
+        # Generate plot for player deaths
+        if player_data:
+            self._save_player_death_plots(player_data, title, report_date, plot_config)
 
         return None  # We handle saving directly, so return None
 
-    def _save_individual_fight_plots(
+    def _save_player_death_plots(
         self,
-        timeline_data: list[dict[str, Any]],
+        player_data: list[dict[str, Any]],
         title: str,
         report_date: str,
         plot_config: dict[str, Any],
     ) -> None:
         """
-        Save individual death timeline plots for each fight in a subfolder.
+        Save death timeline plots for each player in a subfolder.
 
-        :param timeline_data: List of fight timeline data
+        :param player_data: List of player death data
         :param title: Plot title
         :param report_date: Date string for the report
         :param plot_config: Plot configuration
@@ -2116,40 +2245,39 @@ class BossAnalysisBase(ABC):
         except (ValueError, AttributeError):
             date_stamp = datetime.now().strftime("%Y-%m-%d")
 
-        # Create death_timelines subfolder
-        death_timeline_dir = plots_dir / date_stamp / "death_timelines"
-        death_timeline_dir.mkdir(parents=True, exist_ok=True)
+        # Create deaths subfolder
+        deaths_dir = plots_dir / date_stamp / "deaths"
+        deaths_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate individual plots for each fight
-        for fight_data in timeline_data:
-            fight_id = fight_data["fight_id"]
-            deaths = fight_data["deaths"]
+        # Generate individual plots for each player
+        for player_info in player_data:
+            player_name = player_info["player_name"]
+            deaths = player_info["deaths"]
 
             if not deaths:
-                logger.debug(f"Skipping fight {fight_id} - no deaths to plot")
+                logger.debug(f"Skipping player {player_name} - no deaths to plot")
                 continue
 
-            # Create individual plot with single fight data
-            fight_plot = DeathTimelinePlot(
-                title=f"{title} - Fight {fight_id}",
+            # Create plot for this player
+            player_plot = DeathTimelinePlot(
+                title=f"{title} - {player_name}",
                 date=report_date,
-                timeline_data=[fight_data],  # Single fight data
-                figsize=plot_config.get("figsize", (16, 6)),  # Smaller height for single fight
+                player_data=[player_info],  # Single player data
+                figsize=plot_config.get("figsize", (18, 12)),
             )
 
-            # Generate filename for this fight
-            clean_title = re.sub(r"[^\w\s-]", "", title)
-            clean_title = re.sub(r"[-\s]+", "_", clean_title).strip("_").lower()
-            filename = f"{date_stamp}_{clean_title}_fight_{fight_id}.png"
-            file_path = death_timeline_dir / filename
+            # Generate filename for this player: {date}_Deaths_{player_name}.png
+            clean_player_name = re.sub(r"[^\w-]", "", player_name)
+            filename = f"{date_stamp}_Deaths_{clean_player_name}.png"
+            file_path = deaths_dir / filename
 
-            # Save the individual fight plot
-            fig = fight_plot.create_plot()
+            # Save the player death plot
+            fig = player_plot.create_plot()
             fig.savefig(
                 file_path,
                 dpi=300,
                 bbox_inches="tight",
-                facecolor="white",
+                facecolor=PlotColors.BACKGROUND,
                 edgecolor="none",
             )
             logger.info(f"Death timeline plot saved to {file_path}")
@@ -2159,7 +2287,7 @@ class BossAnalysisBase(ABC):
 
             plt.close(fig)
 
-        logger.info(f"Generated {len(timeline_data)} individual death timeline plots in {death_timeline_dir}")
+        logger.info(f"Generated {len(player_data)} player death timeline plots in {deaths_dir}")
 
     def _generate_progress_plots(self) -> None:
         """Generate multi-line progress plots for all enabled configurations."""

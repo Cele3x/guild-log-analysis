@@ -22,7 +22,7 @@ DEFAULT_DIFFICULTY = 5  # Mythic
 DEFAULT_WIPE_CUTOFF = 4  # Stop counting events after 4 players have died
 
 # Logging Configuration
-DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_LOG_LEVEL = "DEBUG"  # DEBUG level for development, shows all messages
 DEFAULT_LOG_FILE = "logs/wow_analysis.log"
 DEFAULT_LOG_FORMAT = "%(asctime)s | %(levelname)s | %(name)s - %(message)s"
 

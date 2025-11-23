@@ -1,17 +1,17 @@
 """
-Death List Visualization module for Guild Log Analysis.
+Death Timeline Visualization module for Guild Log Analysis.
 
-This module provides visualization classes for death list analysis,
-creating death list visualizations similar to Warcraft Logs deaths view.
+This module provides visualization classes for death timeline analysis,
+showing player deaths across all fights in a table format.
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Optional
 
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 
+from ..config.constants import ClassColors
 from .styles import PlotColors, PlotStyleManager
 
 logger = logging.getLogger(__name__)
@@ -19,86 +19,82 @@ logger = logging.getLogger(__name__)
 
 class DeathTimelinePlot:
     """
-    Death list visualization for death analysis.
+    Player-centric death timeline visualization.
 
-    Creates a death list showing player deaths with damage spell information,
-    formatted similar to Warcraft Logs deaths view for easy analysis.
+    Creates a table showing all deaths for a specific player across all fights,
+    including fight number, time of death, and top damage sources.
     """
 
     def __init__(
         self,
         title: str,
         date: str,
-        timeline_data: list[dict[str, Any]],
-        figsize: tuple[int, int] = (16, 10),
+        player_data: list[dict[str, Any]],
+        figsize: tuple[int, int] = (18, 12),
     ) -> None:
         """
         Initialize death timeline plot.
 
         :param title: Plot title
         :param date: Date string for the plot
-        :param timeline_data: List of fight timeline data
+        :param player_data: List of player death data
         :param figsize: Figure size tuple
         """
         self.title = title
         self.date = date
-        self.timeline_data = timeline_data
+        self.player_data = player_data
         self.figsize = figsize
 
-        # Styling constants
+        # Styling constants - using standard plot colors
         self.colors = {
-            "death_instant": "#FF0000",  # Red for instant deaths
-            "death_normal": "#FF6B6B",  # Light red for normal deaths
-            "damage_high": "#FF8C00",  # Orange for high damage
-            "damage_medium": "#FFD700",  # Gold for medium damage
-            "damage_low": "#FFFF99",  # Light yellow for low damage
-            "timeline_bg": "#F5F5F5",  # Light gray background
-            "grid_lines": "#E0E0E0",  # Grid lines
+            "header_bg": PlotColors.CHART_BG,  # Dark gray for header
+            "header_text": PlotColors.TEXT_PRIMARY,  # White for header text
+            "row_even": PlotColors.ROW_ALT,  # Alternating row color
+            "row_odd": PlotColors.BACKGROUND,  # Background color for rows
+            "grid_lines": PlotColors.GRID,  # Grid lines
             "text_primary": PlotColors.TEXT_PRIMARY,
             "text_secondary": PlotColors.TEXT_SECONDARY,
         }
 
     def create_plot(self) -> plt.Figure:
         """
-        Create the death timeline visualization.
+        Create the death timeline table visualization.
 
         :return: Matplotlib figure object
         """
-        if not self.timeline_data:
+        if not self.player_data:
             return self._create_empty_plot()
 
         # Setup figure and styling
         PlotStyleManager.setup_plot_style()
-        fig, axes = plt.subplots(len(self.timeline_data), 1, figsize=self.figsize, squeeze=False)
 
-        # Handle single fight case
-        if len(self.timeline_data) == 1:
+        # Create one plot per player
+        num_players = len(self.player_data)
+        fig, axes = plt.subplots(num_players, 1, figsize=self.figsize, squeeze=False)
+
+        # Set dark background to match other plots
+        fig.patch.set_facecolor(PlotColors.BACKGROUND)
+
+        # Handle single player case
+        if num_players == 1:
             axes = [axes[0, 0]]
         else:
             axes = axes[:, 0]
 
-        # For single fight, use simple title like "Fight 1"
-        if len(self.timeline_data) == 1:
-            fight_id = self.timeline_data[0]["fight_id"]
-            title = f"Fight {fight_id}"
-        else:
-            title = self.title
-
-        fig.suptitle(title, fontsize=20, fontweight="bold", color=self.colors["text_primary"], y=0.95)
-
-        # Create timeline for each fight
-        for i, fight_data in enumerate(self.timeline_data):
-            self._draw_fight_timeline(axes[i], fight_data, i + 1)
+        # Draw table for each player
+        for i, player_info in enumerate(self.player_data):
+            self._draw_player_death_table(axes[i], player_info)
 
         # Adjust layout
         plt.tight_layout()
-        plt.subplots_adjust(top=0.9)
 
         return fig
 
     def _create_empty_plot(self) -> plt.Figure:
         """Create empty plot when no data is available."""
+        PlotStyleManager.setup_plot_style()
         fig, ax = plt.subplots(figsize=(8, 4))
+
         ax.text(
             0.5,
             0.5,
@@ -114,21 +110,53 @@ class DeathTimelinePlot:
         ax.axis("off")
         return fig
 
-    def _draw_fight_timeline(self, ax: plt.Axes, fight_data: dict[str, Any], fight_number: int) -> None:
+    def _create_damage_source_colors(self, deaths: list[dict[str, Any]]) -> dict[str, str]:
         """
-        Draw death list for a single fight (like Warcraft Logs deaths view).
+        Create color mapping for unique damage sources.
+
+        :param deaths: List of death data
+        :return: Dictionary mapping damage source names to colors
+        """
+        import matplotlib.colors as mcolors
+
+        # Extract all unique damage source names (only meaningful damage > 0%)
+        unique_sources = set()
+        for death in deaths:
+            for source in death.get("damage_sources", []):
+                # Only include sources with meaningful damage
+                if source.get("hp_percentage", 0) > 0.0:
+                    unique_sources.add(source["name"])
+
+        # Create color palette - using bright colors for visibility on dark background
+        # tab20 provides 20 distinct colors
+        colors = plt.cm.tab20(range(20))
+
+        # Convert to hex and make brighter for dark background
+        color_palette = [mcolors.rgb2hex(color[:3]) for color in colors]
+
+        # Map each unique source to a color
+        source_colors = {}
+        for i, source_name in enumerate(sorted(unique_sources)):
+            source_colors[source_name] = color_palette[i % len(color_palette)]
+
+        return source_colors
+
+    def _draw_player_death_table(self, ax: plt.Axes, player_info: dict[str, Any]) -> None:
+        """
+        Draw death table for a single player showing all deaths across all fights.
 
         :param ax: Matplotlib axes object
-        :param fight_data: Fight timeline data
-        :param fight_number: Fight number for labeling
+        :param player_info: Player death data including name, class, and deaths list
         """
-        deaths = fight_data["deaths"]
+        player_name = player_info["player_name"]
+        player_class = player_info.get("player_class", "Unknown")
+        deaths = player_info["deaths"]
 
         if not deaths:
             ax.text(
                 0.5,
                 0.5,
-                f"Fight {fight_number}: No deaths to display",
+                f"{player_name}: No deaths",
                 ha="center",
                 va="center",
                 transform=ax.transAxes,
@@ -138,224 +166,179 @@ class DeathTimelinePlot:
             ax.axis("off")
             return
 
-        # Calculate required height based on max damage sources per death
-        max_damage_sources = max(len(death.get("damage_spells", [])) for death in deaths)
-        max_damage_sources = min(max_damage_sources, 3)  # Limit to top 3 for space
+        # Get class color
+        class_color = getattr(ClassColors, player_class, self.colors["text_primary"])
 
-        # Each death needs space for player info + damage sources vertically
-        row_height = max(1.0, max_damage_sources * 0.3 + 0.4)  # Base height + damage sources
-        total_height = len(deaths) * row_height + 2  # Extra space for header
+        # Create color mapping for damage sources
+        damage_source_colors = self._create_damage_source_colors(deaths)
 
-        # Setup for list-style layout with header space
-        ax.set_xlim(0, 10)
+        # Calculate layout dimensions - use standard plot row heights
+        num_deaths = len(deaths)
+        row_height = 0.6  # Standard ROW_HEIGHT from base.py
+        header_height = 0.6  # Standard HEADER_HEIGHT from base.py
+        title_height = 0.7  # Increased for more space above table
+        total_height = title_height + header_height + (num_deaths * row_height) + 0.3
+
+        # Setup axes
+        ax.set_xlim(0, 12)
         ax.set_ylim(0, total_height)
+        ax.axis("off")
 
-        # Remove axes decorations for clean list appearance
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["bottom"].set_visible(False)
-        ax.spines["left"].set_visible(False)
-
-        # Add table headers
-        header_y = total_height - 1.2
+        # Draw player name as title (positioned higher)
+        title_y = total_height - 0.2
         ax.text(
-            0.5,
-            header_y,
-            "#",
-            fontsize=12,
+            0.2,
+            title_y,
+            f"Player: {player_name}",
+            fontsize=14,
             fontweight="bold",
-            color=self.colors["text_primary"],
-            ha="center",
-            va="center",
-        )
-        ax.text(
-            2.5,
-            header_y,
-            "Player",
-            fontsize=12,
-            fontweight="bold",
-            color=self.colors["text_primary"],
-            ha="center",
-            va="center",
-        )
-        ax.text(
-            4.0,
-            header_y,
-            "Time",
-            fontsize=12,
-            fontweight="bold",
-            color=self.colors["text_primary"],
-            ha="center",
-            va="center",
-        )
-        ax.text(
-            6.5,
-            header_y,
-            "Damage Sources",
-            fontsize=12,
-            fontweight="bold",
-            color=self.colors["text_primary"],
-            ha="center",
-            va="center",
+            color=class_color,
+            ha="left",
+            va="top",
         )
 
-        # Add header separator line
-        ax.plot([0.1, 9.9], [header_y - 0.2, header_y - 0.2], color=self.colors["grid_lines"], linewidth=1)
+        # Draw table headers
+        header_y = total_height - title_height - 0.1
+        headers = [
+            (0.3, "Fight #"),
+            (1.2, "Time of Death (s)"),
+            (2.5, "Fight Length (s)"),
+            (4.2, "Damage Source 1"),
+            (7.2, "Damage Source 2"),
+            (10.2, "Damage Source 3"),
+        ]
 
-        # Draw death list entries with proper spacing
-        for i, death in enumerate(deaths):
-            y_pos = total_height - 2 - (i * row_height) - (row_height / 2)  # Center of row
-            self._draw_death_list_entry(ax, death, y_pos, i + 1, row_height)
+        # Draw header background
+        from matplotlib.patches import Rectangle
 
-    def _draw_death_list_entry(
-        self,
-        ax: plt.Axes,
-        death: dict[str, Any],
-        y_pos: float,
-        death_number: int,
-        row_height: float,
-    ) -> None:
-        """
-        Draw a single death entry in list format with vertical damage sources.
-
-        :param ax: Matplotlib axes object
-        :param death: Death event data
-        :param y_pos: Y position for this death entry (center of row)
-        :param death_number: Death number (1, 2, 3, etc.)
-        :param row_height: Height of this row
-        """
-        player_name = death["player_name"]
-        is_instant = death["is_instant_death"]
-        damage_spells = death["damage_spells"]
-        timestamp = death["timestamp"]
-
-        # Get fight time (already calculated in analysis)
-        fight_time = death.get("fight_time_seconds", timestamp / 1000.0)
-
-        # Background rectangle for each entry
-        ax.add_patch(
-            patches.Rectangle(
-                (0.1, y_pos - row_height / 2),
-                9.8,
-                row_height,
-                facecolor=self.colors["timeline_bg"],
-                alpha=0.3,
-                edgecolor=self.colors["grid_lines"],
-                linewidth=0.5,
-            )
+        header_rect = Rectangle(
+            (0.1, header_y - header_height),
+            11.8,
+            header_height,
+            facecolor=self.colors["header_bg"],
+            edgecolor=self.colors["grid_lines"],
+            linewidth=1,
         )
+        ax.add_patch(header_rect)
 
-        # Death number
-        ax.text(
-            0.5,
-            y_pos,
-            f"{death_number}.",
-            fontsize=12,
-            fontweight="bold",
-            color=self.colors["text_primary"],
-            ha="center",
-            va="center",
-        )
-
-        # Player name with death type indicator
-        player_text = player_name
-        if is_instant:
-            player_text += " (INSTANT)"
-            name_color = self.colors["death_instant"]
-        else:
-            # Don't show health percentage as it's always 0.0% after death
-            name_color = self.colors["death_normal"]
-
-        ax.text(1.5, y_pos, player_text, fontsize=11, fontweight="bold", color=name_color, ha="left", va="center")
-
-        # Fight time
-        ax.text(
-            4.0, y_pos, f"{fight_time:.1f}s", fontsize=10, color=self.colors["text_secondary"], ha="center", va="center"
-        )
-
-        # Top damage spells displayed vertically
-        if damage_spells:
-            self._draw_damage_spells_vertical(ax, damage_spells[:3], y_pos, row_height)
-
-    def _draw_damage_spells_vertical(
-        self,
-        ax: plt.Axes,
-        damage_spells: list[dict[str, Any]],
-        y_pos: float,
-        row_height: float,
-    ) -> None:
-        """
-        Draw damage spells vertically in the damage sources column.
-
-        :param ax: Matplotlib axes object
-        :param damage_spells: List of damage spells
-        :param y_pos: Y position for this death entry (center of row)
-        :param row_height: Height of this row
-        """
-        if not damage_spells:
+        # Draw header text
+        for x_pos, header_text in headers:
             ax.text(
-                5.2, y_pos, "No damage data", fontsize=9, color=self.colors["text_secondary"], ha="left", va="center"
-            )
-            return
-
-        # Calculate vertical spacing for damage spells
-        spell_count = len(damage_spells)
-        if spell_count == 1:
-            # Single spell centered
-            spell_positions = [y_pos]
-        else:
-            # Multiple spells distributed vertically within the row
-            spell_spacing = min(0.25, (row_height - 0.2) / spell_count)
-            start_y = y_pos + (spell_count - 1) * spell_spacing / 2
-            spell_positions = [start_y - i * spell_spacing for i in range(spell_count)]
-
-        # Draw each damage spell
-        for i, spell in enumerate(damage_spells):
-            damage = spell["damage"]
-            ability_name = spell["ability_name"]
-            health_percentage = spell.get("health_percentage", 0)
-
-            # Format damage and create display text with health percentage
-            formatted_damage = self._format_damage(damage)
-            spell_text = f"{ability_name}: {formatted_damage} ({health_percentage:.0f}%)"
-
-            # Draw the spell text
-            ax.text(
-                5.2,
-                spell_positions[i],
-                spell_text,
-                fontsize=9,
-                color=self.colors["text_secondary"],
+                x_pos,
+                header_y - header_height / 2,
+                header_text,
+                fontsize=10,
+                fontweight="bold",
+                color=self.colors["header_text"],
                 ha="left",
                 va="center",
             )
 
-    def _format_damage_spells_list(self, damage_spells: list[dict[str, Any]]) -> str:
-        """
-        Format damage spells list for display (concise version).
+        # Draw data rows
+        data_start_y = header_y - header_height
+        for i, death in enumerate(deaths):
+            row_y = data_start_y - (i + 0.5) * row_height
 
-        :param damage_spells: List of damage spells
-        :return: Formatted string showing main damage sources
-        """
-        if not damage_spells:
-            return "No damage data"
+            # Alternating row colors
+            row_color = self.colors["row_even"] if i % 2 == 0 else self.colors["row_odd"]
+            row_rect = Rectangle(
+                (0.1, row_y - row_height / 2),
+                11.8,
+                row_height,
+                facecolor=row_color,
+                edgecolor=self.colors["grid_lines"],
+                linewidth=0.5,
+            )
+            ax.add_patch(row_rect)
 
-        # Show top damage sources with spell names (concise format)
-        spell_summaries = []
-        for spell in damage_spells:
-            damage = spell["damage"]
-            ability_name = spell["ability_name"]
+            # Fight number
+            ax.text(
+                0.3,
+                row_y,
+                str(death["fight_id"]),
+                fontsize=10,
+                color=self.colors["text_primary"],
+                ha="left",
+                va="center",
+            )
 
-            # Shorten long ability names
-            if len(ability_name) > 20:
-                ability_name = ability_name[:17] + "..."
+            # Time of Death (as integer)
+            ax.text(
+                1.2,
+                row_y,
+                str(int(death["fight_time_seconds"])),
+                fontsize=10,
+                color=self.colors["text_primary"],
+                ha="left",
+                va="center",
+            )
 
-            formatted_damage = self._format_damage(damage)
-            spell_summaries.append(f"{ability_name}: {formatted_damage}")
+            # Fight Length (as integer)
+            ax.text(
+                2.5,
+                row_y,
+                str(int(death.get("fight_length_seconds", 0))),
+                fontsize=10,
+                color=self.colors["text_primary"],
+                ha="left",
+                va="center",
+            )
 
-        return " | ".join(spell_summaries)
+            # Damage sources with color coding (filter out 0% damage)
+            all_damage_sources = death.get("damage_sources", [])
+            # Only include damage sources with meaningful damage (> 0.0%)
+            damage_sources = [src for src in all_damage_sources if src.get("hp_percentage", 0) > 0.0]
+            source_positions = [4.2, 7.2, 10.2]
+
+            for j, source_x in enumerate(source_positions):
+                if j < len(damage_sources):
+                    source = damage_sources[j]
+                    is_killing_blow = source.get("is_killing_blow", False)
+
+                    # Prepare damage text
+                    damage_text = f"{source['name']} ({source['hp_percentage']:.1f}%)"
+
+                    # Use color mapping for this damage source
+                    source_color = damage_source_colors.get(source["name"], self.colors["text_secondary"])
+
+                    # Use bold weight for killing blow
+                    font_weight = "bold" if is_killing_blow else "normal"
+
+                    # Render sword marker separately with larger size if killing blow
+                    text_x = source_x
+                    if is_killing_blow:
+                        ax.text(
+                            source_x,
+                            row_y,
+                            "⚔",
+                            fontsize=20,  # Much larger sword
+                            color=source_color,
+                            ha="left",
+                            va="center",
+                            weight="bold",
+                        )
+                        text_x = source_x + 0.15  # Offset damage text to the right
+
+                    ax.text(
+                        text_x,
+                        row_y,
+                        damage_text,
+                        fontsize=9,
+                        color=source_color,
+                        ha="left",
+                        va="center",
+                        weight=font_weight,
+                    )
+                else:
+                    ax.text(
+                        source_x,
+                        row_y,
+                        "-",
+                        fontsize=9,
+                        color=self.colors["text_secondary"],
+                        ha="left",
+                        va="center",
+                    )
 
     def _format_damage(self, damage: int) -> str:
         """Format damage number for display."""
@@ -398,7 +381,15 @@ class DeathTimelinePlot:
 
         # Create the plot and save
         fig = self.create_plot()
-        fig.savefig(file_path, dpi=300, bbox_inches="tight", facecolor="white", edgecolor="none")
+        # Ensure background color is preserved when saving
+        fig.savefig(
+            file_path,
+            dpi=300,
+            bbox_inches="tight",
+            facecolor=fig.get_facecolor(),
+            edgecolor="none",
+            pad_inches=0.1,
+        )
         plt.close(fig)
 
         logger.info(f"Death timeline plot saved to {file_path}")

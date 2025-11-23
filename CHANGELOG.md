@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Nexus King Salhadaar Boss**: Complete boss analysis implementation with Deaths from Besiege and Missed Ghosts tracking
 - **Death Timeline Analysis**: New `death_timeline` analysis type for detailed death analysis with damage spell tracking and health threshold detection
+- **Player-Centric Death Timeline**: Individual death timeline plots per player showing all deaths across all fights with multi-player support
+- **Killing Blow Highlighting**: Visual markers (⚔) and bold text to identify the final damage source in death timeline
+- **Fight Length Display**: Added Fight Length column to death timeline showing total fight duration
 - **Generic Events Analysis**: New `events` analysis type for flexible event counting with configurable filtering (event types, pull ignore time)
 - **DeathTimelinePlot**: Death list visualization showing player deaths with damage sources in a clean, readable format
 - **Polarization Blast Hits Analysis**: New custom analysis type for counting damage events with 10-second hit grouping to avoid double-counting rapid hits
@@ -17,11 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test Infrastructure**: Complete test directory restructure with centralized output management, fixtures, and comprehensive documentation
 
 ### Enhanced
+- **Death Timeline Redesign**: Complete overhaul from fight-centric to player-centric view showing all deaths for each player
+- **Death Timeline Color Coding**: Consistent color mapping for damage sources across all deaths
+- **Multi-Player Filtering**: Support for generating plots for all players or specific player lists via `player_names` configuration
 - **Death Analysis**: Deaths now use events query (`analyze_deaths_events`) instead of table query for better data quality with killing ability information
 - **GraphQL Query Optimization**: Replaced manual death event counting with native `wipeCutoff` parameter for better performance and server-side filtering
 - **Code Reuse**: Eliminated custom player name queries in favor of base class implementation, reducing code duplication
 - **Sprocketmonger Lockenstock Analysis**: Enhanced boss configuration with Wire Transfer analysis and improved German descriptions
 - **Example Boss**: Updated with death timeline analysis configuration example
+
+### Changed
+- **Death Timeline Configuration**: Changed `player_name` to `player_names` (list) for multi-player support
+- **Death Timeline Output**: Plots now saved to `deaths` subdirectory with format `{date}_Deaths_{PlayerName}.png`
+- **Default Log Level**: Changed from INFO to DEBUG for better development diagnostics
 
 ### Fixed
 - **API Efficiency**: Removed redundant death event queries by leveraging GraphQL `wipeCutoff` parameter with default value of 4 deaths
@@ -39,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 - Death timeline analysis with configurable health threshold and damage window tracking
+- Player-centric death timeline tracks all deaths per player across all fights with resurrection support
+- Killing blow detection uses timestamp comparison among top 3 damage sources
+- Time display shows integer seconds for Time of Death and Fight Length columns
+- Color-coded damage sources using matplotlib's tab20 palette for consistency
+- Sword marker (⚔) rendered at fontsize 20 with bold weight for killing blow emphasis
 - Events analysis with `pull_ignore_time_ms` for filtering early-pull events
 - Death list visualization with instant death detection and damage source tracking
 - `analyze_deaths_events` method provides detailed death event data with ability information
