@@ -5,9 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-04-28
+
+### Added
+- **CD Assignment Compliance Checker**: New standalone script `scripts/check-cd-assignments` (and module `guild_log_analysis.analysis.cd_assignments`) that parses an MRT-style assignment note and verifies, per fight and per phase, whether each player used their assigned cooldown within a configurable on-time margin (default 10s, override via `--margin`). Runs separately from the regular boss analysis flow.
+- **Chimaerus**: Added "Dissonance Damage" analysis using combined spell IDs 1267201 and 1268666 with a 4-death wipe cutoff.
+
+### Enhanced
+- **Table Data Analysis**: Updated `analyze_table_data` in the base analysis class to support multiple `ability_ids`. This allows for aggregating and summing metrics (damage taken, debuff hits, etc.) from multiple spells into a single analysis entry.
+- **Example Boss**: Updated example configuration to demonstrate combined damage taken analysis using multiple ability IDs.
+
 ## [2.5.0] - 2025-07-16
 
 ### Added
+- **Chimaerus Boss (The Dreamrift, Midnight)**: New boss analysis (encounter 3306) covering deaths, survivability, player deaths, and consumable usage tracking (Healthstone, Demonic Healthstone, Silvermoon Health Potion)
 - **Nexus King Salhadaar Boss**: Complete boss analysis implementation with Deaths from Besiege and Missed Ghosts tracking
 - **Player Deaths Analysis**: New `player_deaths` analysis type for detailed death analysis with damage spell tracking and health threshold detection
 - **Player-Centric Deaths Visualization**: Individual death plots per player showing all deaths across all fights with multi-player support
