@@ -96,6 +96,72 @@ analyzer.generate_one_armed_bandit_plots()
 # analyzer.generate_<boss_name>_plots()
 ```
 
+## Command-Line Interface
+
+The project ships two executable scripts under `scripts/` and two installed entry points (configured in `pyproject.toml`).
+
+### `scripts/analyze` / `guild-analyze`
+
+Main analysis entry point — runs a boss analysis across one or more reports and generates plots.
+
+```bash
+scripts/analyze --reports REPORT_CODE [REPORT_CODE ...] --boss BOSS_NAME [options]
+scripts/analyze --list-bosses
+```
+
+| Flag | Description |
+|------|-------------|
+| `--reports`, `-r` | One or more Warcraft Logs report codes (also accepts a single space-separated string). Required unless `--list-bosses`. |
+| `--boss`, `-b` | Boss name to analyze (see `--list-bosses`). Required unless `--list-bosses`. |
+| `--progress-plots`, `-p` | Also generate progress plots showing trends over time. |
+| `--player-deaths` | Also generate per-player death plots. |
+| `--player-names` | Comma-separated list of players to include in deaths analysis (e.g. `"Ylea,Tharand"`). Overrides any boss `CONFIG` filter. |
+| `--list-bosses`, `-l` | List registered boss encounters and exit. |
+| `--output-dir`, `-o` | Output directory for plots/results (default `output`). |
+| `--verbose`, `-v` | INFO-level logging. |
+| `--debug`, `-d` | DEBUG-level logging plus full tracebacks on failure. |
+
+Examples:
+
+```bash
+scripts/analyze --reports kPJma1QVhABKz4Hr yC1KYmQpv9MbNw4T --boss one_armed_bandit
+scripts/analyze --reports report1 --boss chimaerus --progress-plots --player-deaths
+scripts/analyze --list-bosses
+```
+
+The same CLI is also installed as the `guild-analyze` console script when the package is installed (`pip install -e .`).
+
+### `guild-log-analysis`
+
+Installed console script that runs `guild_log_analysis.main:main` — convenience entry that invokes a hard-coded analysis flow (currently One-Armed Bandit). Prefer `guild-analyze` / `scripts/analyze` for normal use.
+
+### `scripts/check-cd-assignments`
+
+Standalone, manually-invoked check that verifies whether players used their assigned cooldowns on time, given an MRT-style assignment note. Renders a single-page **landscape PDF** (one row per pull, one column per assignment; cells are green when on time, red when off). The encounter and difficulty are taken from the note header, so only matching pulls in the supplied reports are analyzed.
+
+```bash
+scripts/check-cd-assignments --reports REPORT_CODE [REPORT_CODE ...] [--note FILE] [--margin SECONDS] [--healers-only] [--output PATH]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--reports`, `-r` | One or more Warcraft Logs report codes. Required. |
+| `--note`, `-n` | Path to the assignment note file. If omitted, the note is read from stdin. |
+| `--margin`, `-m` | On-time tolerance in seconds (default `10`). A cast within `±margin` of the expected timestamp counts as on-time. |
+| `--healers-only` | Only include assignments whose player is detected as a healer in at least one of the analyzed reports. |
+| `--output`, `-o` | Path to write the PDF. Defaults to `<plots>/<YYYY-MM-DD>/<YYYY-MM-DD>_cd_assignments[_healers].pdf`. |
+| `--print-summary` | Also print a per-player text compliance summary to stdout. |
+| `--verbose`, `-v` | INFO-level logging. |
+
+The note is the standard MRT format with an `EncounterID:N;Difficulty:Mythic;Name:Boss` header followed by `time:T;ph:P;[bossSpell:B;]tag:Player;spellid:S;` lines. Lines without a `spellid` or with a multi-player `tag` (group soaks, kicks) are ignored. Spell names are resolved from the bundled `spells.yaml` and the report's `masterData`, so the table shows readable names rather than spell IDs.
+
+Examples:
+
+```bash
+scripts/check-cd-assignments --reports kPJma1QVhABKz4Hr --note assignments/chimaerus.txt
+scripts/check-cd-assignments -r report1 report2 --margin 8 --healers-only --note assignments/chimaerus.txt
+```
+
 ### Adding New Boss Analyses
 
 The registry-based system makes adding new boss analyses extremely simple. Just create a configuration file:
