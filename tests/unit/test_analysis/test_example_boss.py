@@ -22,7 +22,7 @@ class TestExampleBossAnalysis:
 
     def test_config_structure(self, analysis):
         """Test CONFIG structure."""
-        assert len(analysis.CONFIG) == 12
+        assert len(analysis.CONFIG) == 13
 
         # Check that all configs have required structure
         for config in analysis.CONFIG:
@@ -74,6 +74,16 @@ class TestExampleBossAnalysis:
         assert config["plot"]["column_header_2"] == "Hits"
         assert config["plot"]["column_header_3"] == "Damage Taken"
 
+    def test_combined_damage_taken_config(self, analysis):
+        """Test combined damage taken configuration with multiple IDs."""
+        config = next((c for c in analysis.CONFIG if c["name"] == "Combined Damage Taken"), None)
+        assert config is not None
+        assert config["analysis"]["type"] == "table_data"
+        assert config["analysis"]["data_type"] == "DamageTaken"
+        assert config["analysis"]["ability_ids"] == [11111, 22222]
+        assert config["plot"]["type"] == "NumberPlot"
+        assert config["plot"]["column_key_1"] == "damage_taken"
+
     def test_role_filtering(self, analysis):
         """Test role filtering in configurations."""
         # DPS only
@@ -95,10 +105,11 @@ class TestExampleBossAnalysis:
 
         # All roles (no role restriction)
         all_roles_configs = [c for c in analysis.CONFIG if "roles" not in c]
-        assert len(all_roles_configs) == 7
+        assert len(all_roles_configs) == 8
         names = [c["name"] for c in all_roles_configs]
         assert "Debuff Uptime" in names
         assert "Damage Taken from Fire" in names
+        assert "Combined Damage Taken" in names
         assert "Low Tolerance Debuff" in names
         assert "Deaths from Fire Mechanic" in names
         assert "All Deaths" in names

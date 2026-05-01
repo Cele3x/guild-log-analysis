@@ -102,6 +102,20 @@ class ExampleBossAnalysis(BossAnalysisBase):
             },
         },
         {
+            "name": "Combined Damage Taken",
+            "analysis": {
+                "type": "table_data",
+                "ability_ids": [11111, 22222],  # Combine multiple abilities
+                "data_type": "DamageTaken",
+            },
+            "plot": {
+                "type": "NumberPlot",
+                "title": "Combined Damage Taken",
+                "column_key_1": "damage_taken",
+                "column_header_2": "Damage",
+            },
+        },
+        {
             "name": "Absorbed Damage",
             "roles": [PlayerRoles.TANK],  # Tanks typically absorb damage
             "analysis": {
