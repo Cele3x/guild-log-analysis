@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Check CD assignment compliance against an MRT-style note and emit a PDF table."""
+
+import argparse
+import logging
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
+
+from guild_log_analysis.analysis.cd_assignments import (  # noqa: E402
+    check_assignments,
+    parse_assignment_note,
+    summarize_results,
+)
+from guild_log_analysis.api.auth import get_access_token  # noqa: E402
+from guild_log_analysis.api.client import WarcraftLogsAPIClient  # noqa: E402
+from guild_log_analysis.config.logging_config import setup_logging  # noqa: E402
+from guild_log_analysis.config.settings import Settings  # noqa: E402
+from guild_log_analysis.plotting.cd_assignments import CDAssignmentsPlot  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+
+def main() -> None:
+    """Parse CLI arguments and run the assignment check."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Check whether players used assigned cooldowns on time. "
+            "A cast within --margin seconds of the assigned time counts as on-time. "
+            "Renders a single-page landscape PDF table (one row per pull)."
+        ),
+    )
+    parser.add_argument(
+        "--reports", "-r", nargs="+", required=True,
+        help="Warcraft Logs report codes to analyze",
+        metavar="REPORT_CODE",
+    )
+    parser.add_argument(
+        "--note", "-n",
+        help="Path to assignment note file. If omitted, the note is read from stdin.",
+    )
+    parser.add_argument(
+        "--margin", "-m", type=float, default=10.0,
+        help="On-time tolerance in seconds (default: 10).",
+    )
+    parser.add_argument(
+        "--healers-only", action="store_true",
+        help="Only include assignments whose player is detected as a healer.",
+    )
+    parser.add_argument(
+        "--output", "-o", default=None,
+        help=(
+            "Path to write the PDF. If omitted, writes "
+            "<plots>/<YYYY-MM-DD>/<YYYY-MM-DD>_cd_assignments[_healers].pdf."
+        ),
+    )
+    parser.add_argument(
+        "--print-summary", action="store_true",
+        help="Also print a per-player text summary to stdout.",
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Enable verbose logging output.",
+    )
+    args = parser.parse_args()
+
+    setup_logging()
+    logging.getLogger().setLevel(logging.INFO if args.verbose else logging.WARNING)
+
+    if args.note:
+        with open(args.note, "r", encoding="utf-8") as fp:
+            note_text = fp.read()
+    else:
+        if sys.stdin.isatty():
+            parser.error("No --note file given and stdin is empty")
+        note_text = sys.stdin.read()
+
+    note = parse_assignment_note(note_text)
+    print(
+        f"Loaded {len(note.assignments)} assignments for {note.name} "
+        f"(encounterID={note.encounter_id}, difficulty={note.difficulty}), "
+        f"margin={args.margin:g}s"
+        + (", healers only" if args.healers_only else "")
+    )
+
+    api_client = WarcraftLogsAPIClient(access_token=get_access_token())
+    compliance = check_assignments(
+        api_client,
+        args.reports,
+        note,
+        margin_seconds=args.margin,
+        healers_only=args.healers_only,
+    )
+
+    if not compliance.fights:
+        print("No fights matched the encounter/difficulty in the given reports.")
+        sys.exit(1)
+    if not compliance.assignments:
+        print("No assignments to render after filtering.")
+        sys.exit(1)
+
+    # Resolve output path.
+    if args.output:
+        out_path = Path(args.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        date_stamp = datetime.now().strftime("%Y-%m-%d")
+        plots_dir = Settings().plots_directory / date_stamp
+        plots_dir.mkdir(parents=True, exist_ok=True)
+        suffix = "_healers" if args.healers_only else ""
+        out_path = plots_dir / f"{date_stamp}_cd_assignments{suffix}.pdf"
+
+    title = note.name or "CD Assignments"
+    date_str = datetime.now().strftime("%d.%m.%Y")
+    plot = CDAssignmentsPlot(compliance, title=title, date=date_str)
+    plot.save_pdf(str(out_path))
+    print(f"Wrote {out_path}")
+
+    if args.print_summary:
+        print(summarize_results(compliance))
+
+
+if __name__ == "__main__":
+    main()
