@@ -60,6 +60,11 @@ class Settings:
         return os.getenv("CLIENT_ID")
 
     @property
+    def warcraft_logs_client_secret(self) -> Optional[str]:
+        """Get Warcraft Logs client secret (optional, for confidential clients)."""
+        return os.getenv("CLIENT_SECRET")
+
+    @property
     def redirect_uri(self) -> str:
         """Get OAuth redirect URI."""
         return os.getenv("REDIRECT_URI", DEFAULT_REDIRECT_URI)

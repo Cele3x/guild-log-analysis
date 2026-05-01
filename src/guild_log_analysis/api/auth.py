@@ -120,6 +120,7 @@ class TokenManager:
         }
 
         try:
+            os.makedirs(os.path.dirname(self.cache_file) or ".", exist_ok=True)
             with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f, indent=2)
             logger.info(f"Token cached to {self.cache_file}")
@@ -150,8 +151,40 @@ class OAuthAuthenticator:
         if cached_token:
             return cached_token
 
+        settings = Settings()
+        if settings.warcraft_logs_client_secret:
+            logger.info("Using client_credentials grant (confidential client)")
+            return self._perform_client_credentials_flow()
+
         logger.info("Starting OAuth authentication flow")
         return self._perform_oauth_flow()
+
+    def _perform_client_credentials_flow(self) -> str:
+        """
+        Get access token using client_credentials grant.
+
+        :returns: Access token
+        :raises AuthenticationError: If authentication fails
+        """
+        settings = Settings()
+        try:
+            response = requests.post(
+                settings.token_url,
+                data={"grant_type": "client_credentials"},
+                auth=(settings.warcraft_logs_client_id, settings.warcraft_logs_client_secret),
+                timeout=30,
+            )
+            response.raise_for_status()
+            token_info = response.json()
+            access_token = token_info["access_token"]
+            expires_in = token_info.get("expires_in", 3600)
+            self.token_manager.save_token_to_cache(access_token, expires_in)
+            return access_token
+        except requests.RequestException as e:
+            logger.error(f"client_credentials token request failed: {e}")
+            if e.response is not None:
+                logger.error(f"Response body: {e.response.text}")
+            raise AuthenticationError(ErrorMessages.AUTH_FAILED) from e
 
     def _perform_oauth_flow(self) -> str:
         """
@@ -251,14 +284,18 @@ class OAuthAuthenticator:
         settings = Settings()
         data = {
             "grant_type": "authorization_code",
-            "client_id": settings.warcraft_logs_client_id,
             "code": auth_code,
             "redirect_uri": settings.redirect_uri,
             "code_verifier": code_verifier,
         }
+        auth = None
+        if settings.warcraft_logs_client_secret:
+            auth = (settings.warcraft_logs_client_id, settings.warcraft_logs_client_secret)
+        else:
+            data["client_id"] = settings.warcraft_logs_client_id
 
         try:
-            response = requests.post(settings.token_url, data=data, timeout=30)
+            response = requests.post(settings.token_url, data=data, auth=auth, timeout=30)
             response.raise_for_status()
             return response.json()
 
